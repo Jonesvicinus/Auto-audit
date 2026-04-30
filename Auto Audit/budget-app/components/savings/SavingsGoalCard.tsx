@@ -151,16 +151,18 @@ export function SavingsGoalCard({
           size="sm"
           variant="outline"
           leftIcon={<Minus className="w-4 h-4" />}
+          className="text-sm"
           onClick={() => onContribute(-10)}
         >
-          -$10
+          $10
         </Button>
         <Button
           size="sm"
           leftIcon={<Plus className="w-4 h-4" />}
+          className="text-sm"
           onClick={() => onContribute(10)}
         >
-          +$10
+          $10
         </Button>
         <Button
           size="sm"

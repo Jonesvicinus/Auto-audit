@@ -36,7 +36,7 @@ export function CategoryProgress({
         : "text-gray-900 dark:text-gray-100";
 
   return (
-    <div className={`rounded-xl border p-4 transition-colors ${borderTone}`}>
+    <div className={`rounded-xl border p-4 ${borderTone}`}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <span

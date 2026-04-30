@@ -208,18 +208,18 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const deleteCategory = useCallback((id: string) => {
     setState((s) => {
       const cat = s.categories.find((c) => c.id === id);
-      if (!cat || cat.isOther) return s;
-      const other = s.categories.find((c) => c.isOther);
+      if (!cat) return s;
+      const fallback = s.categories.find((c) => c.id !== id);
       const transactions = s.transactions.map((t) =>
-        t.categoryId === id && other ? { ...t, categoryId: other.id } : t,
+        t.categoryId === id && fallback ? { ...t, categoryId: fallback.id } : t,
       );
       const budgets = s.budgets.map((b) => {
         if (!(id in b.categories)) return b;
         const amount = b.categories[id] ?? 0;
         const nextCats: Record<string, number> = { ...b.categories };
         delete nextCats[id];
-        if (other) {
-          nextCats[other.id] = (nextCats[other.id] ?? 0) + amount;
+        if (fallback) {
+          nextCats[fallback.id] = (nextCats[fallback.id] ?? 0) + amount;
         }
         return { ...b, categories: nextCats };
       });

@@ -7,6 +7,10 @@
   --foreground: #111827;
   --surface: #ffffff;
   --border: #e5e7eb;
+  --chart-axis: #4b5563;
+  --chart-grid: #e5e7eb;
+  --chart-tooltip-bg: #ffffff;
+  --nav-active-bg: #ecfdf5;
 }
 
 .dark {
@@ -14,6 +18,10 @@
   --foreground: #f3f4f6;
   --surface: #15181d;
   --border: #1f2937;
+  --chart-axis: #f3f4f6;
+  --chart-grid: #4b5563;
+  --chart-tooltip-bg: #15181d;
+  --nav-active-bg: rgba(4, 120, 87, 0.15);
   color-scheme: dark;
 }
 
@@ -30,13 +38,18 @@ body {
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 200ms ease, color 200ms ease;
 }
 
 @layer utilities {
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
+}
+
+.theme-chart .recharts-cartesian-axis-tick-value,
+.theme-chart .recharts-legend-item-text {
+  fill: var(--chart-axis) !important;
+  color: var(--chart-axis) !important;
 }
 
 /* Print-friendly styles for the Report page — always force light theme on paper */

@@ -33,18 +33,26 @@ function applyHtmlClass(theme: ResolvedTheme) {
   else root.classList.remove("dark");
 }
 
+function readStoredPreference(): ThemePreference {
+  if (typeof window === "undefined") return "system";
+  return (window.localStorage.getItem(STORAGE_KEY) as ThemePreference | null) ?? "system";
+}
+
+function resolvePreference(preference: ThemePreference): ResolvedTheme {
+  return preference === "system" ? readSystemTheme() : preference;
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [preference, setPreferenceState] = useState<ThemePreference>("system");
-  const [resolved, setResolved] = useState<ResolvedTheme>("light");
+  const [preference, setPreferenceState] = useState<ThemePreference>(readStoredPreference);
+  const [resolved, setResolved] = useState<ResolvedTheme>(() =>
+    resolvePreference(readStoredPreference()),
+  );
 
   // Hydrate from localStorage and apply once mounted.
   useEffect(() => {
-    const stored = (typeof window !== "undefined"
-      ? window.localStorage.getItem(STORAGE_KEY)
-      : null) as ThemePreference | null;
-    const initial: ThemePreference = stored ?? "system";
+    const initial = readStoredPreference();
     setPreferenceState(initial);
-    const next = initial === "system" ? readSystemTheme() : initial;
+    const next = resolvePreference(initial);
     setResolved(next);
     applyHtmlClass(next);
   }, []);
@@ -63,13 +71,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [preference]);
 
   const setPreference = useCallback((p: ThemePreference) => {
-    setPreferenceState(p);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEY, p);
     }
-    const next = p === "system" ? readSystemTheme() : p;
-    setResolved(next);
+    const next = resolvePreference(p);
     applyHtmlClass(next);
+    setPreferenceState(p);
+    setResolved(next);
   }, []);
 
   const toggle = useCallback(() => {

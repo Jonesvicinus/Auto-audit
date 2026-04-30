@@ -10,14 +10,16 @@ export function DemoBanner() {
 
   return (
     <div className="bg-brand-50 dark:bg-brand-700/15 border-b border-brand-200 dark:border-brand-700/40 text-brand-800 dark:text-brand-200">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 h-10 flex items-center justify-between gap-4 text-sm">
-        <p className="flex items-center gap-2 truncate">
-          <Sparkles className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">
-            You're in demo mode. Changes are local to this browser.
-          </span>
-        </p>
-        <div className="flex items-center gap-2 shrink-0">
+      <div className="relative h-10 text-sm">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 h-full flex items-center">
+          <p className="flex items-center gap-2 truncate pr-24">
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">
+              You're in demo mode. Changes are local to this browser.
+            </span>
+          </p>
+        </div>
+        <div className="absolute inset-y-0 right-3 flex items-center gap-2">
           {supabaseConfigured && (
             <Link
               href="/signup"

@@ -52,7 +52,7 @@ export function NudgeCards() {
           <Link
             key={n.title}
             href={n.href}
-            className="group rounded-2xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-card transition-all animate-fade-in"
+            className="group rounded-2xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 hover:border-brand-300 dark:hover:border-brand-700 hover:shadow-card transition-shadow animate-fade-in"
             style={{ animationDelay: `${i * 60}ms` }}
           >
             <div className="flex items-center justify-between">
@@ -67,7 +67,7 @@ export function NudgeCards() {
               {n.title}
             </h3>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{n.body}</p>
-            <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand-700 dark:text-brand-400 group-hover:gap-2 transition-all">
+            <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand-700 dark:text-brand-400 group-hover:gap-2">
               {n.cta}
               <ArrowRight className="w-4 h-4" />
             </div>

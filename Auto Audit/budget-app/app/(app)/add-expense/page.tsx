@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PlusCircle, CheckCircle2, LayoutDashboard } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Input, TextArea } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
@@ -143,13 +144,12 @@ export default function AddExpensePage() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
               />
-              <Input
+              <DatePicker
                 label="Date"
                 name="date"
-                type="date"
                 value={date}
                 max={todayIsoDate()}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={setDate}
               />
             </div>
 
