@@ -1,6 +1,6 @@
-# Auto Audit — v1.1
+# Auto Audit — v1.2
 
-A polished, desktop-first personal budgeting app for students and young adults. Built with Next.js (App Router), TypeScript, Tailwind CSS, and Recharts. v1.1 adds Supabase auth, a "try the demo" path, dark mode, polished empty states, page transitions, and a global toast system on top of the v1.0 prototype.
+A polished, desktop-first personal budgeting app for students and young adults. Built with Next.js (App Router), TypeScript, Tailwind CSS, Recharts, and Supabase.
 
 ## Quick start
 
@@ -28,8 +28,11 @@ Without any Supabase setup the app runs in **demo mode only** — sign-up / logi
 
 Restart `npm run dev` and the landing page will now show "Get started" / "Sign in" buttons.
 
-## v1.1 — what's new
+## v1.2 — what's new
 
+- **Auth flow hardening** — duplicate signup messaging, email-confirmation handling, friendlier rate-limit errors, and cleaner demo/auth switching.
+- **More reliable persistence** — user-scoped default categories for Supabase accounts, safer category deletion, and budget form values preserved while adding categories.
+- **Demo isolation** — entering demo mode signs out first and reloads sample data instead of mixing with a real user's state.
 - **Real authentication via Supabase** — signup, login, password reset, session persistence (`app/(auth)/`).
 - **Demo mode** — "Try the demo" loads Alex Carter's 12 months locally without an account. A persistent banner offers signup at any time.
 - **Dark mode** — system-preference default + manual toggle in the header. Pre-hydration script avoids the light-mode flash; theme persists in localStorage and (for signed-in users) `user_settings.theme`.

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useId } from "react";
 
 export function Toggle({
   checked,
@@ -13,7 +13,8 @@ export function Toggle({
   label?: string;
   id?: string;
 }) {
-  const tid = id ?? `toggle-${Math.random().toString(36).slice(2, 8)}`;
+  const generatedId = useId();
+  const tid = id ?? generatedId;
   return (
     <label
       htmlFor={tid}

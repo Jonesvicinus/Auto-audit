@@ -43,10 +43,8 @@ function resolvePreference(preference: ThemePreference): ResolvedTheme {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [preference, setPreferenceState] = useState<ThemePreference>(readStoredPreference);
-  const [resolved, setResolved] = useState<ResolvedTheme>(() =>
-    resolvePreference(readStoredPreference()),
-  );
+  const [preference, setPreferenceState] = useState<ThemePreference>("system");
+  const [resolved, setResolved] = useState<ResolvedTheme>("light");
 
   // Hydrate from localStorage and apply once mounted.
   useEffect(() => {

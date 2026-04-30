@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { MailCheck } from "lucide-react";
 import { AuthFormShell } from "@/components/auth/AuthFormShell";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -21,6 +22,7 @@ export default function SignupPage() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   // Redirect if already signed in
   useEffect(() => {
@@ -39,14 +41,59 @@ export default function SignupPage() {
       return;
     }
     setSubmitting(true);
-    const err = await signUp(email.trim(), password, name.trim() || undefined);
+    const result = await signUp(email.trim(), password, name.trim() || undefined);
     setSubmitting(false);
-    if (err) {
-      setError(err.message);
+
+    if (result === null) {
+      // Email confirmation off — user is signed in immediately
+      toast.success("Welcome to Auto Audit", "Your account is ready.");
+      router.replace("/dashboard");
       return;
     }
-    toast.success("Welcome to Auto Audit", "Your account is ready.");
-    router.replace("/dashboard");
+    if ("needsConfirmation" in result) {
+      // Email confirmation on — show check-your-email state
+      setPendingEmail(result.email);
+      return;
+    }
+    // AuthFormError
+    setError(result.message);
+  }
+
+  // Confirmation-pending success state — replaces the form when shown.
+  if (pendingEmail) {
+    return (
+      <AuthFormShell
+        title="Check your email"
+        subtitle="One quick step before you can sign in."
+        footer={
+          <>
+            Didn't get the email?{" "}
+            <button
+              onClick={() => setPendingEmail(null)}
+              className="text-brand-700 dark:text-brand-300 font-medium hover:underline"
+            >
+              Try again
+            </button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center text-center">
+          <div className="w-12 h-12 rounded-2xl bg-brand-100 dark:bg-brand-700/15 text-brand-700 dark:text-brand-300 grid place-items-center mb-4">
+            <MailCheck className="w-6 h-6" />
+          </div>
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            We sent a confirmation link to{" "}
+            <span className="font-semibold">{pendingEmail}</span>.
+          </p>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            Click the link, then come back here to sign in.
+          </p>
+          <Link href="/login" className="mt-6 w-full">
+            <Button className="w-full">Go to sign in</Button>
+          </Link>
+        </div>
+      </AuthFormShell>
+    );
   }
 
   return (
@@ -56,7 +103,10 @@ export default function SignupPage() {
       footer={
         <>
           Already have an account?{" "}
-          <Link href="/login" className="text-brand-700 dark:text-brand-300 font-medium hover:underline">
+          <Link
+            href="/login"
+            className="text-brand-700 dark:text-brand-300 font-medium hover:underline"
+          >
             Sign in
           </Link>
         </>

@@ -21,8 +21,8 @@ export default function LandingPage() {
   const router = useRouter();
   const { enterDemoMode, supabaseConfigured, isAuthenticated } = useAuth();
 
-  function startDemo() {
-    enterDemoMode();
+  async function startDemo() {
+    await enterDemoMode();
     router.push("/dashboard");
   }
 
@@ -310,7 +310,7 @@ export default function LandingPage() {
 
       <footer className="py-10 border-t border-gray-100 dark:border-neutral-900">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 flex flex-wrap items-center justify-between gap-4 text-sm text-gray-500 dark:text-gray-500">
-          <p>© {new Date().getFullYear()} Auto Audit — v1.1</p>
+          <p>© {new Date().getFullYear()} Auto Audit — v1.2</p>
           <p>Demo data is local to your browser. Sign up to sync across devices.</p>
         </div>
       </footer>

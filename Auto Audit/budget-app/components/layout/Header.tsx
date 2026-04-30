@@ -76,7 +76,7 @@ export function Header({ pathname }: { pathname: string }) {
               <LogOut className="w-4 h-4" />
             </button>
           ) : (
-            supabaseConfigured && (
+            supabaseConfigured && !isDemo && (
               <Link href="/login">
                 <Button size="sm" variant="outline" leftIcon={<LogIn className="w-4 h-4" />}>
                   <span className="hidden md:inline">Sign in</span>

@@ -153,7 +153,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   }, [state, hydrated]);
 
   const otherCategoryId = useMemo(
-    () => state.categories.find((c) => c.isOther)?.id ?? "cat-other",
+    () => state.categories.find((c) => c.isOther)?.id ?? state.categories[0]?.id ?? "",
     [state.categories],
   );
 
@@ -208,19 +208,18 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const deleteCategory = useCallback((id: string) => {
     setState((s) => {
       const cat = s.categories.find((c) => c.id === id);
-      if (!cat) return s;
+      if (!cat || s.categories.length <= 1) return s;
       const fallback = s.categories.find((c) => c.id !== id);
+      if (!fallback) return s;
       const transactions = s.transactions.map((t) =>
-        t.categoryId === id && fallback ? { ...t, categoryId: fallback.id } : t,
+        t.categoryId === id ? { ...t, categoryId: fallback.id } : t,
       );
       const budgets = s.budgets.map((b) => {
         if (!(id in b.categories)) return b;
         const amount = b.categories[id] ?? 0;
         const nextCats: Record<string, number> = { ...b.categories };
         delete nextCats[id];
-        if (fallback) {
-          nextCats[fallback.id] = (nextCats[fallback.id] ?? 0) + amount;
-        }
+        nextCats[fallback.id] = (nextCats[fallback.id] ?? 0) + amount;
         return { ...b, categories: nextCats };
       });
       return {

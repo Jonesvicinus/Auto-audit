@@ -1,4 +1,4 @@
--- Auto Audit — Supabase schema for v1.1
+-- Auto Audit — Supabase schema for v1.2
 -- Run this in the Supabase SQL editor (or via `supabase db push`).
 -- Every table is scoped to the owning user via Row Level Security.
 

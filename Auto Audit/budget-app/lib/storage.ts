@@ -58,6 +58,17 @@ export class LocalStorageAdapter implements StorageAdapter {
   }
 }
 
+function categoryIdForUser(userId: string, categoryId: string): string {
+  return `${userId}-${categoryId}`;
+}
+
+function defaultCategoriesForUser(user: User) {
+  return DEFAULT_CATEGORIES.map((category) => ({
+    ...category,
+    id: categoryIdForUser(user.id, category.id),
+  }));
+}
+
 // -----------------------------------------------------------------------------
 // Supabase adapter — used when a real user is signed in.
 // load(): assembles AppState from per-user tables.
@@ -131,7 +142,8 @@ export class SupabaseStorageAdapter implements StorageAdapter {
     if (!sb) return;
     const uid = this.user.id;
 
-    // Categories — upsert and prune deleted
+    // Categories — upsert first so transaction/category references exist.
+    // Pruning deleted categories happens after transactions are rewritten.
     const catRows = state.categories.map((c, i) => ({
       id: c.id,
       user_id: uid,
@@ -143,11 +155,6 @@ export class SupabaseStorageAdapter implements StorageAdapter {
       is_other: c.isOther ?? false,
     }));
     await sb.from("categories").upsert(catRows, { onConflict: "id" });
-    await sb
-      .from("categories")
-      .delete()
-      .eq("user_id", uid)
-      .not("id", "in", `(${catRows.map((r) => `"${r.id}"`).join(",") || "null"})`);
 
     // Transactions
     const txRows = state.transactions.map((t) => ({
@@ -162,11 +169,21 @@ export class SupabaseStorageAdapter implements StorageAdapter {
     if (txRows.length > 0) {
       await sb.from("transactions").upsert(txRows, { onConflict: "id" });
     }
+    if (txRows.length > 0) {
+      await sb
+        .from("transactions")
+        .delete()
+        .eq("user_id", uid)
+        .not("id", "in", `(${txRows.map((r) => `"${r.id}"`).join(",")})`);
+    } else {
+      await sb.from("transactions").delete().eq("user_id", uid);
+    }
+
     await sb
-      .from("transactions")
+      .from("categories")
       .delete()
       .eq("user_id", uid)
-      .not("id", "in", `(${txRows.map((r) => `"${r.id}"`).join(",") || "null"})`);
+      .not("id", "in", `(${catRows.map((r) => `"${r.id}"`).join(",") || "null"})`);
 
     // Budgets
     const bgRows = state.budgets.map((b) => ({
@@ -195,11 +212,15 @@ export class SupabaseStorageAdapter implements StorageAdapter {
     if (goalRows.length > 0) {
       await sb.from("savings_goals").upsert(goalRows, { onConflict: "id" });
     }
-    await sb
-      .from("savings_goals")
-      .delete()
-      .eq("user_id", uid)
-      .not("id", "in", `(${goalRows.map((r) => `"${r.id}"`).join(",") || "null"})`);
+    if (goalRows.length > 0) {
+      await sb
+        .from("savings_goals")
+        .delete()
+        .eq("user_id", uid)
+        .not("id", "in", `(${goalRows.map((r) => `"${r.id}"`).join(",")})`);
+    } else {
+      await sb.from("savings_goals").delete().eq("user_id", uid);
+    }
 
     // Merchant memory — replace strategy: delete then insert (small set)
     await sb.from("merchant_memory").delete().eq("user_id", uid);
@@ -259,15 +280,16 @@ export function buildDemoState(): AppState {
 // Authenticated empty state — for brand-new signups. Clean slate with default
 // categories already seeded so the user can start budgeting right away.
 export function buildEmptyAuthenticatedState(user: User): AppState {
+  const categories = defaultCategoriesForUser(user);
   return {
     user,
-    categories: DEFAULT_CATEGORIES.map((c) => ({ ...c })),
+    categories,
     transactions: [],
     budgets: [
       {
         month: currentMonthKey(),
         total: 0,
-        categories: Object.fromEntries(DEFAULT_CATEGORIES.map((c) => [c.id, 0])),
+        categories: Object.fromEntries(categories.map((c) => [c.id, 0])),
       },
     ],
     savingsGoals: [],

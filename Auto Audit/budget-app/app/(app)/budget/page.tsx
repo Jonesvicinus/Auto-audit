@@ -51,12 +51,23 @@ export default function BudgetSettingsPage() {
   useEffect(() => {
     const b = getBudgetForMonth(budgets, month);
     setTotal(b?.total ?? 0);
-    const next: Record<string, number> = {};
-    for (const c of categories) {
-      next[c.id] = b?.categories?.[c.id] ?? 0;
-    }
-    setLimits(next);
-  }, [month, budgets, categories]);
+    setLimits(b?.categories ? { ...b.categories } : {});
+  }, [month, budgets]);
+
+  useEffect(() => {
+    setLimits((current) => {
+      const next: Record<string, number> = {};
+      for (const c of categories) {
+        next[c.id] = current[c.id] ?? 0;
+      }
+      const currentKeys = Object.keys(current);
+      const nextKeys = Object.keys(next);
+      const same =
+        currentKeys.length === nextKeys.length &&
+        nextKeys.every((key) => current[key] === next[key]);
+      return same ? current : next;
+    });
+  }, [categories]);
 
   const categorySum = useMemo(() => sumCategoryBudgets(limits), [limits]);
   const slack = total - categorySum;
@@ -87,16 +98,18 @@ export default function BudgetSettingsPage() {
     const cat = categories.find((c) => c.id === id);
     if (!cat) return;
     const fallback = categories.find((c) => c.id !== id);
+    if (!fallback) {
+      toast.warn("Keep one category", "Add another category before deleting this one.");
+      return;
+    }
     const ok = window.confirm(
-      fallback
-        ? `Delete "${cat.name}"? Existing transactions will be moved to ${fallback.name}.`
-        : `Delete "${cat.name}"? Existing transactions will keep their category history until another category is added.`,
+      `Delete "${cat.name}"? Existing transactions will be moved to ${fallback.name}.`,
     );
     if (ok) {
       deleteCategory(id);
       toast.info(
         "Category removed",
-        fallback ? `${cat.name} merged into ${fallback.name}.` : cat.name,
+        `${cat.name} merged into ${fallback.name}.`,
       );
     }
   }
@@ -203,13 +216,8 @@ export default function BudgetSettingsPage() {
                   <div className="flex items-center gap-2">
                     <input
                       value={c.name}
-                      disabled={c.isOther}
                       onChange={(e) => updateCategory(c.id, { name: e.target.value })}
-                      className={`text-sm font-medium bg-transparent focus:outline-none rounded px-1 -mx-1 ${
-                        c.isOther
-                          ? "text-gray-700 dark:text-gray-300"
-                          : "text-gray-900 dark:text-gray-100 hover:bg-gray-50 focus:bg-gray-50 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
-                      }`}
+                      className="text-sm font-medium bg-transparent focus:outline-none rounded px-1 -mx-1 text-gray-900 dark:text-gray-100 hover:bg-gray-50 focus:bg-gray-50 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
                     />
                     {c.isOther && <Badge tone="neutral">Auto</Badge>}
                     {c.isDefault && !c.isOther && <Badge tone="brand">Default</Badge>}

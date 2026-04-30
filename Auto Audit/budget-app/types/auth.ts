@@ -14,3 +14,12 @@ export interface AuthFormError {
   message: string;
   field?: string;
 }
+
+// Sign-up can succeed in two ways:
+//   - immediately authenticated (email confirmation off) → returns null
+//   - awaiting email confirmation                         → returns { needsConfirmation: true }
+// Anything else is a friendly error.
+export type SignUpResult =
+  | AuthFormError
+  | { needsConfirmation: true; email: string }
+  | null;
