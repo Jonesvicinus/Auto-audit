@@ -27,7 +27,7 @@ export function Toggle({
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
         />
-        <span className="absolute inset-0 rounded-full bg-gray-200 dark:bg-neutral-700 peer-checked:bg-brand-500 transition-colors" />
+        <span className="absolute inset-0 rounded-full bg-gray-200 dark:bg-neutral-700 peer-checked:bg-brand-500" />
         <span className="absolute top-0.5 left-0.5 w-5 h-5 bg-white dark:bg-neutral-100 rounded-full shadow-sm transition-transform peer-checked:translate-x-4" />
       </span>
       {label && (

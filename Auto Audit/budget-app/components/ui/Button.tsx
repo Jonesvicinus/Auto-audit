@@ -13,7 +13,7 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClasses: Record<Variant, string> = {
   primary:
-    "bg-brand-600 text-white hover:bg-brand-700 shadow-sm disabled:bg-brand-300 dark:disabled:bg-brand-800/60 disabled:text-white/70",
+    "bg-brand-600 text-white hover:bg-brand-700 shadow-sm disabled:bg-brand-600 dark:disabled:bg-brand-600 disabled:text-white",
   secondary:
     "bg-gray-900 text-white hover:bg-gray-800 shadow-sm disabled:bg-gray-400 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200",
   ghost:
@@ -44,7 +44,7 @@ export function Button({
     <button
       {...props}
       disabled={disabled || loading}
-      className={`inline-flex items-center justify-center gap-2 font-medium transition-colors disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 font-medium disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
     >
       {loading ? (
         <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />

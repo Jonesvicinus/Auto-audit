@@ -85,13 +85,19 @@ export default function BudgetSettingsPage() {
 
   function handleDeleteCategory(id: string) {
     const cat = categories.find((c) => c.id === id);
-    if (!cat || cat.isOther) return;
+    if (!cat) return;
+    const fallback = categories.find((c) => c.id !== id);
     const ok = window.confirm(
-      `Delete "${cat.name}"? Existing transactions will be moved to Other.`,
+      fallback
+        ? `Delete "${cat.name}"? Existing transactions will be moved to ${fallback.name}.`
+        : `Delete "${cat.name}"? Existing transactions will keep their category history until another category is added.`,
     );
     if (ok) {
       deleteCategory(id);
-      toast.info("Category removed", `${cat.name} merged into Other.`);
+      toast.info(
+        "Category removed",
+        fallback ? `${cat.name} merged into ${fallback.name}.` : cat.name,
+      );
     }
   }
 
@@ -226,15 +232,13 @@ export default function BudgetSettingsPage() {
                     leftAdornment={<span>$</span>}
                   />
                 </div>
-                {!c.isOther && !c.isDefault && (
-                  <button
-                    onClick={() => handleDeleteCategory(c.id)}
-                    aria-label={`Delete ${c.name}`}
-                    className="p-2 text-gray-400 hover:text-danger-600 hover:bg-danger-50 dark:hover:bg-danger-700/20 rounded-lg"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
+                <button
+                  onClick={() => handleDeleteCategory(c.id)}
+                  aria-label={`Delete ${c.name}`}
+                  className="p-2 text-gray-400 hover:text-danger-600 hover:bg-danger-50 dark:hover:bg-danger-700/20 rounded-lg"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </li>
             ))}
           </ul>
@@ -251,18 +255,23 @@ export default function BudgetSettingsPage() {
                 }
               }}
             />
-            <Button
-              variant="outline"
-              leftIcon={<Plus className="w-4 h-4" />}
+            <button
+              type="button"
               onClick={handleAddCategory}
               disabled={!newCatName.trim()}
+              className="inline-flex min-h-[42px] items-stretch overflow-hidden rounded-lg border border-gray-300 bg-white text-xs font-medium text-gray-900 shadow-sm disabled:cursor-not-allowed disabled:text-gray-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-gray-100 dark:disabled:text-gray-500"
             >
-              Add Category
-            </Button>
+              <span className="grid w-12 place-items-center border-r border-gray-300 bg-gray-50 text-gray-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-gray-300">
+                <Plus className="w-4 h-4" />
+              </span>
+              <span className="grid min-w-24 place-items-center px-3">
+                Add Category
+              </span>
+            </button>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-            Default categories can be renamed but not removed. Deleting a custom
-            category moves its past transactions into Other.
+            Categories can be renamed or removed. Deleting a category moves its
+            past transactions into another category.
           </p>
         </Card>
       </div>

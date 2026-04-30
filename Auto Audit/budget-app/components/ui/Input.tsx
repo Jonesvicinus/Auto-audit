@@ -8,7 +8,7 @@ type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
 };
 
 const baseInputClasses =
-  "w-full px-3 py-2 text-sm border bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-colors";
+  "w-full px-3 py-2 text-sm border bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500";
 
 export function Input({
   label,

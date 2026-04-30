@@ -36,7 +36,7 @@ export function ChartSwitcher({
             <button
               key={t.key}
               onClick={() => setActive(t.key)}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border ${
                 is
                   ? "bg-brand-50 dark:bg-brand-700/15 text-brand-700 dark:text-brand-300 border-brand-200 dark:border-brand-700/40"
                   : "bg-white dark:bg-neutral-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-800"

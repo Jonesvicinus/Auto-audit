@@ -113,7 +113,7 @@ export default function DashboardPage() {
         <div className="inline-flex bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-xl p-1 shadow-card">
           <button
             onClick={() => setDisplayMode("remaining")}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg ${
               displayMode === "remaining"
                 ? "bg-gray-900 dark:bg-neutral-100 text-white dark:text-neutral-900"
                 : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-neutral-800"
@@ -124,7 +124,7 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => setDisplayMode("percent")}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg ${
               displayMode === "percent"
                 ? "bg-gray-900 dark:bg-neutral-100 text-white dark:text-neutral-900"
                 : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-neutral-800"
@@ -164,7 +164,7 @@ export default function DashboardPage() {
           value={formatCurrency(summary.total)}
           sub={formatMonth(month)}
           icon={<Wallet className="w-5 h-5" />}
-          tone="neutral"
+          tone="brand"
         />
         <StatTile
           label="Spent So Far"
@@ -182,7 +182,7 @@ export default function DashboardPage() {
               : "Available to spend"
           }
           icon={<TrendingDown className="w-5 h-5" />}
-          tone={summary.remaining < 0 ? "danger" : "neutral"}
+          tone={summary.remaining < 0 ? "danger" : "brand"}
         />
       </div>
 

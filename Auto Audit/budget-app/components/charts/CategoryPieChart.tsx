@@ -5,6 +5,11 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recha
 import type { CategorySpendRow } from "@/lib/budgetCalc";
 import { formatCurrency } from "@/lib/format";
 
+const PIE_CENTER_X = "50%";
+const PIE_CENTER_Y = 110;
+const PIE_OUTER_RADIUS = 95;
+const PIE_OUTLINE_WIDTH = 3;
+
 export function CategoryPieChart({ rows }: { rows: CategorySpendRow[] }) {
   const data = rows
     .filter((r) => r.spent > 0)
@@ -23,17 +28,42 @@ export function CategoryPieChart({ rows }: { rows: CategorySpendRow[] }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <PieChart>
+    <ResponsiveContainer className="theme-chart" width="100%" height={280}>
+        <PieChart>
         <Pie
           data={data}
           dataKey="value"
           nameKey="name"
+          cx={PIE_CENTER_X}
+          cy={PIE_CENTER_Y}
+          innerRadius={PIE_OUTER_RADIUS}
+          outerRadius={PIE_OUTER_RADIUS + PIE_OUTLINE_WIDTH}
+          paddingAngle={0}
+          stroke="none"
+          strokeWidth={0}
+          fill="var(--foreground)"
+          isAnimationActive={false}
+          legendType="none"
+          tooltipType="none"
+        >
+          {data.map((_, i) => (
+            <Cell key={i} fill="var(--foreground)" />
+          ))}
+        </Pie>
+        <Pie
+          data={data}
+          dataKey="value"
+          nameKey="name"
+          cx={PIE_CENTER_X}
+          cy={PIE_CENTER_Y}
           innerRadius={55}
-          outerRadius={95}
-          paddingAngle={2}
-          stroke="#fff"
-          strokeWidth={2}
+          outerRadius={PIE_OUTER_RADIUS}
+          paddingAngle={0}
+          stroke="none"
+          strokeWidth={0}
+          animationBegin={0}
+          animationDuration={500}
+          animationEasing="ease-in-out"
         >
           {data.map((d, i) => (
             <Cell key={i} fill={d.color} />
@@ -41,7 +71,13 @@ export function CategoryPieChart({ rows }: { rows: CategorySpendRow[] }) {
         </Pie>
         <Tooltip
           formatter={(value: number) => formatCurrency(value)}
-          contentStyle={{ borderRadius: 10, border: "1px solid #e5e7eb", fontSize: 12 }}
+          contentStyle={{
+            borderRadius: 10,
+            border: "1px solid var(--border)",
+            backgroundColor: "var(--chart-tooltip-bg)",
+            color: "var(--foreground)",
+            fontSize: 12,
+          }}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
       </PieChart>

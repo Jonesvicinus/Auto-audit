@@ -51,9 +51,9 @@ export function Sidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm ${
                     active
-                      ? "bg-brand-50 dark:bg-brand-700/15 text-brand-700 dark:text-brand-300 font-medium"
+                      ? "bg-[var(--nav-active-bg)] text-brand-700 dark:text-brand-300 font-medium"
                       : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800"
                   }`}
                 >
