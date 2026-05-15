@@ -22,13 +22,74 @@ import { useToast } from "@/components/ui/Toast";
 const PALETTE = [
   "#10b981",
   "#3b82f6",
-  "#a855f7",
   "#f59e0b",
-  "#ec4899",
-  "#14b8a6",
-  "#6366f1",
+  "#8b5cf6",
   "#ef4444",
+  "#ec4899",
+  "#06b6d4",
+  "#f97316",
+  "#84cc16",
+  "#6b7280",
 ];
+
+function nextCategoryColor(categories: { color: string }[]): string {
+  const used = new Set(categories.map((c) => c.color.toLowerCase()));
+  const paletteHit = PALETTE.find((color) => !used.has(color.toLowerCase()));
+  if (paletteHit) return paletteHit;
+  return PALETTE[categories.length % PALETTE.length];
+}
+
+function ColorSelector({
+  color,
+  onChange,
+  label,
+  usedColors,
+}: {
+  color: string;
+  onChange: (color: string) => void;
+  label: string;
+  usedColors: Set<string>;
+}) {
+  return (
+    <div className="grid grid-cols-5 gap-3" aria-label={label}>
+      {PALETTE.map((swatch) => {
+        const active = swatch.toLowerCase() === color.toLowerCase();
+        const used = usedColors.has(swatch.toLowerCase()) && !active;
+        return (
+          <button
+            key={swatch}
+            type="button"
+            onClick={() => onChange(swatch)}
+            title={used ? "Already used" : swatch}
+            aria-label={`${label}: ${swatch}${used ? " already used" : ""}`}
+            className="relative h-9 w-9 rounded-full hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
+          >
+            <span
+              aria-hidden
+              className="absolute inset-0 rounded-full"
+              style={{ backgroundColor: swatch }}
+            />
+            {active && (
+              <span
+                aria-hidden
+                className="absolute inset-0 rounded-full border-2 border-gray-950 dark:border-white"
+              />
+            )}
+            {used && (
+              <span
+                aria-hidden
+                className="absolute inset-0 overflow-hidden rounded-full"
+              >
+                <span className="absolute inset-0 rounded-full border-2 border-gray-950 dark:border-white" />
+                <span className="absolute left-1/2 top-1/2 h-0.5 w-10 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-gray-950 dark:bg-white" />
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function BudgetSettingsPage() {
   const {
@@ -72,6 +133,10 @@ export default function BudgetSettingsPage() {
   const categorySum = useMemo(() => sumCategoryBudgets(limits), [limits]);
   const slack = total - categorySum;
   const exceeds = categoryBudgetsExceedTotal({ month, total, categories: limits });
+  const usedColors = useMemo(
+    () => new Set(categories.map((c) => c.color.toLowerCase())),
+    [categories],
+  );
 
   function handleSave() {
     if (exceeds) {
@@ -88,7 +153,7 @@ export default function BudgetSettingsPage() {
   function handleAddCategory() {
     const name = newCatName.trim();
     if (!name) return;
-    const color = PALETTE[categories.length % PALETTE.length];
+    const color = nextCategoryColor(categories);
     addCategory({ name, color });
     setNewCatName("");
     toast.success("Category added", name);
@@ -207,11 +272,25 @@ export default function BudgetSettingsPage() {
                 key={c.id}
                 className="flex items-center gap-3 border border-gray-200 dark:border-neutral-800 rounded-xl px-4 py-3 bg-white dark:bg-neutral-900"
               >
-                <span
-                  aria-hidden
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: c.color }}
-                />
+                <div className="relative shrink-0 group">
+                  <button
+                    type="button"
+                    aria-label={`Change ${c.name} color`}
+                    className="block w-4 h-4 rounded-full ring-2 ring-white dark:ring-neutral-900 shadow-sm focus:outline-none focus-visible:ring-brand-500"
+                    style={{ backgroundColor: c.color }}
+                  />
+                  <div className="absolute left-0 top-8 z-20 hidden w-[252px] group-focus-within:block group-hover:block rounded-2xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-4 shadow-pop">
+                    <p className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">
+                      Category color
+                    </p>
+                    <ColorSelector
+                      color={c.color}
+                      onChange={(color) => updateCategory(c.id, { color })}
+                      label={`${c.name} color`}
+                      usedColors={usedColors}
+                    />
+                  </div>
+                </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <input

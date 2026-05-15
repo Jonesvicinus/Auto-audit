@@ -9,6 +9,7 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
+import { StatementImportPanel } from "@/components/transactions/StatementImportPanel";
 
 import { useBudget } from "@/lib/BudgetContext";
 import { suggestCategory } from "@/lib/merchantMemory";
@@ -94,8 +95,21 @@ export default function AddExpensePage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
-      {justSaved ? (
+    <div className="max-w-3xl mx-auto space-y-8 animate-fade-in">
+      {/* Section 1 — Manual entry. Single form, unchanged behavior. */}
+      <section aria-labelledby="manual-entry-heading" className="space-y-4">
+        <div>
+          <h2
+            id="manual-entry-heading"
+            className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
+          >
+            Manual entry
+          </h2>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Log one purchase. Use this for cash, on-the-spot entries, or anything not on a statement.
+          </p>
+        </div>
+        {justSaved ? (
         <Card>
           <div className="flex flex-col items-center text-center py-6">
             <div className="w-12 h-12 rounded-2xl bg-brand-100 dark:bg-brand-700/15 text-brand-700 dark:text-brand-300 grid place-items-center mb-4">
@@ -215,6 +229,40 @@ export default function AddExpensePage() {
           </form>
         </Card>
       )}
+      </section>
+
+      {/* Visual divider between the two flows. */}
+      <div className="relative">
+        <div
+          aria-hidden
+          className="absolute inset-0 flex items-center"
+        >
+          <div className="w-full border-t border-gray-200 dark:border-neutral-800" />
+        </div>
+        <div className="relative flex justify-center">
+          <span className="px-3 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-neutral-950">
+            or
+          </span>
+        </div>
+      </div>
+
+      {/* Section 2 — Statement import (CSV or PDF). */}
+      <section aria-labelledby="statement-import-heading" className="space-y-4">
+        <div>
+          <h2
+            id="statement-import-heading"
+            className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
+          >
+            Import statement
+          </h2>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Upload a bank/credit-card CSV export or a Capital One PDF
+            statement to import a whole month at once. We'll auto-categorize
+            using your merchant memory.
+          </p>
+        </div>
+        <StatementImportPanel />
+      </section>
     </div>
   );
 }

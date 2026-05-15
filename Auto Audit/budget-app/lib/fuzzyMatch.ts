@@ -10,6 +10,78 @@ export function normalizeMerchant(name: string): string {
     .replace(/\s+/g, " ");
 }
 
+const CHAIN_PATTERNS: { key: string; pattern: RegExp }[] = [
+  { key: "publix", pattern: /\bpublix\b/i },
+  { key: "lyft", pattern: /\blyft\b/i },
+  { key: "uber eats", pattern: /\buber\s*eats\b/i },
+  { key: "uber", pattern: /\buber\b/i },
+  { key: "walmart", pattern: /\bwalmart\b/i },
+  { key: "target", pattern: /\btarget\b/i },
+  { key: "starbucks", pattern: /\bstarbucks\b/i },
+  { key: "chipotle", pattern: /\bchipotle\b/i },
+  { key: "dominos", pattern: /\bdomino'?s?\b/i },
+  { key: "cvs pharmacy", pattern: /\bcvs\b|\bcvs\s*pharmacy\b/i },
+  { key: "walgreens", pattern: /\bwalgreens\b/i },
+  { key: "shell", pattern: /\bshell\b/i },
+  { key: "exxon", pattern: /\bexxon\b/i },
+  { key: "buc ees", pattern: /\bbuc[\s-]*ee'?s?\b/i },
+];
+
+const STATE_CODES = new Set([
+  "al", "ak", "az", "ar", "ca", "co", "ct", "de", "fl", "ga", "hi", "ia",
+  "id", "il", "in", "ks", "ky", "la", "ma", "md", "me", "mi", "mn", "mo",
+  "ms", "mt", "nc", "nd", "ne", "nh", "nj", "nm", "nv", "ny", "oh", "ok",
+  "or", "pa", "ri", "sc", "sd", "tn", "tx", "ut", "va", "vt", "wa", "wi",
+  "wv", "wy",
+]);
+
+const NOISE_WORDS = new Set([
+  "card",
+  "debit",
+  "purchase",
+  "pos",
+  "auth",
+  "pending",
+  "online",
+  "store",
+  "location",
+  "payment",
+  "mobile",
+]);
+
+function isLikelyLocationToken(token: string): boolean {
+  if (STATE_CODES.has(token)) return true;
+  if (token.length > 7 && STATE_CODES.has(token.slice(-2))) return true;
+  return false;
+}
+
+// Groups close merchant/location variants under one key for categorization.
+// Examples: "PUBLIX #1095COLUMBIASC" → "publix", "LYFT *RIDE" → "lyft".
+export function merchantFamilyKey(name: string): string {
+  const raw = name.trim();
+  for (const chain of CHAIN_PATTERNS) {
+    if (chain.pattern.test(raw)) return chain.key;
+  }
+
+  const normalized = normalizeMerchant(raw.replace(/([0-9])([a-z])/gi, "$1 $2"));
+  if (!normalized) return "";
+
+  const tokens = normalized
+    .split(" ")
+    .filter((token, index) => {
+      if (!token) return false;
+      if (NOISE_WORDS.has(token)) return false;
+      if (/\d/.test(token) && index > 0) return false;
+      return true;
+    });
+
+  while (tokens.length > 1 && isLikelyLocationToken(tokens[tokens.length - 1])) {
+    tokens.pop();
+  }
+
+  return tokens.slice(0, 3).join(" ") || normalized;
+}
+
 // Classic Levenshtein distance (iterative, O(m*n) space).
 function levenshtein(a: string, b: string): number {
   if (a === b) return 0;

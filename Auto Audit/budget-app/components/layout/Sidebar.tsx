@@ -79,7 +79,7 @@ export function Sidebar() {
           </p>
         ) : (
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Auto Audit · v1.2
+            Auto Audit · v1.3
           </p>
         )}
       </div>

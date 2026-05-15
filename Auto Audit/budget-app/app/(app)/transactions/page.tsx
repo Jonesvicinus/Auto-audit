@@ -10,10 +10,14 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge } from "@/components/ui/Badge";
 import { TransactionEditor } from "@/components/transactions/TransactionEditor";
+import { MonthSelector } from "@/components/budget/MonthSelector";
 
 import { useBudget } from "@/lib/BudgetContext";
+import { transactionsInMonth } from "@/lib/budgetCalc";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useToast } from "@/components/ui/Toast";
+import { merchantFamilyKey } from "@/lib/fuzzyMatch";
+import { currentMonthKey, formatMonth } from "@/lib/months";
 
 type SortKey = "date" | "merchant" | "amount" | "category";
 
@@ -23,10 +27,12 @@ export default function TransactionsPage() {
     categories,
     updateTransaction,
     deleteTransaction,
+    clearTransactionsForMonth,
     hydrated,
   } = useBudget();
   const toast = useToast();
 
+  const [month, setMonth] = useState<string>(currentMonthKey());
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("date");
@@ -46,9 +52,13 @@ export default function TransactionsPage() {
   );
 
   const isFiltered = query.trim().length > 0 || categoryFilter !== "all";
+  const monthTx = useMemo(
+    () => transactionsInMonth(transactions, month),
+    [transactions, month],
+  );
 
   const rows = useMemo(() => {
-    let list = transactions.slice();
+    let list = monthTx.slice();
     if (query.trim()) {
       const q = query.toLowerCase();
       list = list.filter((t) => t.merchant.toLowerCase().includes(q));
@@ -69,7 +79,7 @@ export default function TransactionsPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [transactions, query, categoryFilter, sortKey, sortDir, categories]);
+  }, [monthTx, query, categoryFilter, sortKey, sortDir, categories]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -85,6 +95,22 @@ export default function TransactionsPage() {
     setCategoryFilter("all");
   }
 
+  function handleClearMonth() {
+    if (monthTx.length === 0) return;
+    const monthLabel = formatMonth(month);
+    const confirmed = window.confirm(
+      `Clear all ${monthTx.length} expense${monthTx.length === 1 ? "" : "s"} from ${monthLabel}?\n\nThis cannot be undone.`,
+    );
+    if (!confirmed) return;
+    const removed = monthTx.length;
+    clearTransactionsForMonth(month);
+    toast.danger(
+      "Month expenses cleared",
+      `${removed} expense${removed === 1 ? "" : "s"} removed from ${monthLabel}.`,
+    );
+    setEditing(null);
+  }
+
   if (!hydrated) return null;
 
   return (
@@ -92,17 +118,31 @@ export default function TransactionsPage() {
       <Card>
         <CardHeader
           title="Transactions"
-          subtitle={`${transactions.length} total across your account.`}
+          subtitle={`${monthTx.length} in ${formatMonth(month)} · ${transactions.length} total across your account.`}
           action={
-            <Link href="/add-expense">
-              <Button size="sm" leftIcon={<Plus className="w-4 h-4" />}>
-                Add Expense
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                size="sm"
+                variant="danger"
+                leftIcon={<Trash2 className="w-4 h-4" />}
+                onClick={handleClearMonth}
+                disabled={monthTx.length === 0}
+                title={`Clear all expenses from ${formatMonth(month)}`}
+              >
+                <span className="hidden sm:inline">Clear Month</span>
+                <span className="sm:hidden">Clear</span>
               </Button>
-            </Link>
+              <Link href="/add-expense">
+                <Button size="sm" leftIcon={<Plus className="w-4 h-4" />}>
+                  Add Expense
+                </Button>
+              </Link>
+            </div>
           }
         />
 
-        <div className="grid md:grid-cols-[1fr_240px] gap-3">
+        <div className="grid md:grid-cols-[250px_1fr_240px] gap-3">
+          <MonthSelector month={month} onChange={setMonth} />
           <Input
             placeholder="Search by merchant..."
             leftAdornment={<Search className="w-4 h-4" />}
@@ -116,12 +156,25 @@ export default function TransactionsPage() {
           />
         </div>
 
-        {transactions.length === 0 ? (
+        {monthTx.length === 0 && transactions.length === 0 ? (
           <div className="mt-6">
             <EmptyState
               icon={<ListOrdered className="w-6 h-6" />}
               title="No transactions yet."
               description="Once you log a purchase, it'll show up here so you can search, sort, edit, or delete it."
+              action={
+                <Link href="/add-expense">
+                  <Button leftIcon={<Plus className="w-4 h-4" />}>Add Expense</Button>
+                </Link>
+              }
+            />
+          </div>
+        ) : monthTx.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState
+              icon={<ListOrdered className="w-6 h-6" />}
+              title={`No expenses in ${formatMonth(month)}.`}
+              description="Pick another month or add a purchase for this one."
               action={
                 <Link href="/add-expense">
                   <Button leftIcon={<Plus className="w-4 h-4" />}>Add Expense</Button>
@@ -249,9 +302,25 @@ export default function TransactionsPage() {
                               categoryOptions={categoryOptionsForEdit}
                               onCancel={() => setEditing(null)}
                               onSave={(patch) => {
+                                const categoryChanged =
+                                  patch.categoryId !== undefined &&
+                                  patch.categoryId !== tx.categoryId;
+                                const merchantKey = merchantFamilyKey(
+                                  patch.merchant ?? tx.merchant,
+                                );
+                                const matchingCount = categoryChanged
+                                  ? transactions.filter(
+                                      (t) => merchantFamilyKey(t.merchant) === merchantKey,
+                                    ).length
+                                  : 1;
                                 updateTransaction(tx.id, patch);
                                 setEditing(null);
-                                toast.success("Transaction updated");
+                                toast.success(
+                                  "Transaction updated",
+                                  categoryChanged && matchingCount > 1
+                                    ? `${matchingCount} matching merchant transactions were recategorized.`
+                                    : undefined,
+                                );
                               }}
                             />
                           </td>

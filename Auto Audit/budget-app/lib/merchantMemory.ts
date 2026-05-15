@@ -1,5 +1,5 @@
 import type { MerchantMemoryEntry } from "@/types";
-import { bestMatch, normalizeMerchant } from "./fuzzyMatch";
+import { bestMatch, merchantFamilyKey } from "./fuzzyMatch";
 
 export interface MerchantSuggestion {
   categoryId: string;
@@ -17,7 +17,10 @@ export function suggestCategory(
 ): MerchantSuggestion | null {
   const remembered = memory.filter((m) => m.remember);
   if (remembered.length === 0) return null;
-  const match = bestMatch(merchant, remembered, (m) => m.key);
+  const queryKey = merchantFamilyKey(merchant);
+  const match = bestMatch(queryKey || merchant, remembered, (m) =>
+    merchantFamilyKey(m.key) || m.key,
+  );
   if (!match) return null;
 
   if (match.exact || match.score >= EXACT_THRESHOLD) {
@@ -45,7 +48,7 @@ export function upsertMemory(
   categoryId: string,
   remember: boolean,
 ): MerchantMemoryEntry[] {
-  const key = normalizeMerchant(merchant);
+  const key = merchantFamilyKey(merchant);
   if (!key) return memory;
   const next = memory.slice();
   const idx = next.findIndex((m) => m.key === key);

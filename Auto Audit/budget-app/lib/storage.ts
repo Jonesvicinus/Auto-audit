@@ -91,6 +91,12 @@ export class SupabaseStorageAdapter implements StorageAdapter {
       sb.from("user_settings").select("*").eq("user_id", uid).maybeSingle(),
     ]);
 
+    // Throw on read errors so the caller doesn't accidentally treat "load
+    // failed" as "fresh account, please reseed" and overwrite real data.
+    const firstError =
+      cats.error || txs.error || bgs.error || goals.error || mem.error || settings.error;
+    if (firstError) throw new Error(`load failed: ${firstError.message}`);
+
     // If the user has no categories yet, this is a brand-new account and we
     // return null to signal "needs initial seed".
     if (!cats.data || cats.data.length === 0) return null;
@@ -142,8 +148,10 @@ export class SupabaseStorageAdapter implements StorageAdapter {
     if (!sb) return;
     const uid = this.user.id;
 
-    // Categories — upsert first so transaction/category references exist.
-    // Pruning deleted categories happens after transactions are rewritten.
+    // -------------------------------------------------------------------------
+    // Categories — upsert first so any new transaction.category_id references
+    // exist before we touch the transactions table.
+    // -------------------------------------------------------------------------
     const catRows = state.categories.map((c, i) => ({
       id: c.id,
       user_id: uid,
@@ -154,9 +162,19 @@ export class SupabaseStorageAdapter implements StorageAdapter {
       is_default: c.isDefault ?? false,
       is_other: c.isOther ?? false,
     }));
-    await sb.from("categories").upsert(catRows, { onConflict: "id" });
+    if (catRows.length > 0) {
+      const { error } = await sb
+        .from("categories")
+        .upsert(catRows, { onConflict: "id" });
+      if (error) throw new Error(`categories upsert: ${error.message}`);
+    }
 
-    // Transactions
+    // -------------------------------------------------------------------------
+    // Transactions — upsert current rows, then prune any rows that no longer
+    // exist in app state. We compute the diff explicitly (vs. the dangerous
+    // string-interpolated `not.id.in.(...)` filter that used to live here)
+    // because an empty IN list silently deletes everything.
+    // -------------------------------------------------------------------------
     const txRows = state.transactions.map((t) => ({
       id: t.id,
       user_id: uid,
@@ -167,25 +185,19 @@ export class SupabaseStorageAdapter implements StorageAdapter {
       note: t.note ?? null,
     }));
     if (txRows.length > 0) {
-      await sb.from("transactions").upsert(txRows, { onConflict: "id" });
-    }
-    if (txRows.length > 0) {
-      await sb
+      const { error } = await sb
         .from("transactions")
-        .delete()
-        .eq("user_id", uid)
-        .not("id", "in", `(${txRows.map((r) => `"${r.id}"`).join(",")})`);
-    } else {
-      await sb.from("transactions").delete().eq("user_id", uid);
+        .upsert(txRows, { onConflict: "id" });
+      if (error) throw new Error(`transactions upsert: ${error.message}`);
     }
+    await pruneDeleted(sb, "transactions", uid, state.transactions.map((t) => t.id));
 
-    await sb
-      .from("categories")
-      .delete()
-      .eq("user_id", uid)
-      .not("id", "in", `(${catRows.map((r) => `"${r.id}"`).join(",") || "null"})`);
+    // Categories prune AFTER transactions, so FK constraints are satisfied.
+    await pruneDeleted(sb, "categories", uid, state.categories.map((c) => c.id));
 
+    // -------------------------------------------------------------------------
     // Budgets
+    // -------------------------------------------------------------------------
     const bgRows = state.budgets.map((b) => ({
       user_id: uid,
       month_key: b.month,
@@ -193,12 +205,35 @@ export class SupabaseStorageAdapter implements StorageAdapter {
       per_category: b.categories,
     }));
     if (bgRows.length > 0) {
-      await sb
+      const { error } = await sb
         .from("monthly_budgets")
         .upsert(bgRows, { onConflict: "user_id,month_key" });
+      if (error) throw new Error(`monthly_budgets upsert: ${error.message}`);
+    }
+    // Prune budget rows for months no longer in state.
+    {
+      const keepMonths = new Set(state.budgets.map((b) => b.month));
+      const { data: existing, error: selErr } = await sb
+        .from("monthly_budgets")
+        .select("month_key")
+        .eq("user_id", uid);
+      if (selErr) throw new Error(`monthly_budgets prune select: ${selErr.message}`);
+      const toDelete = (existing ?? [])
+        .map((r) => (r as { month_key: string }).month_key)
+        .filter((m) => !keepMonths.has(m));
+      if (toDelete.length > 0) {
+        const { error: delErr } = await sb
+          .from("monthly_budgets")
+          .delete()
+          .eq("user_id", uid)
+          .in("month_key", toDelete);
+        if (delErr) throw new Error(`monthly_budgets prune delete: ${delErr.message}`);
+      }
     }
 
+    // -------------------------------------------------------------------------
     // Savings goals
+    // -------------------------------------------------------------------------
     const goalRows = state.savingsGoals.map((g) => ({
       id: g.id,
       user_id: uid,
@@ -210,37 +245,39 @@ export class SupabaseStorageAdapter implements StorageAdapter {
       created_at: g.createdAt,
     }));
     if (goalRows.length > 0) {
-      await sb.from("savings_goals").upsert(goalRows, { onConflict: "id" });
-    }
-    if (goalRows.length > 0) {
-      await sb
+      const { error } = await sb
         .from("savings_goals")
-        .delete()
-        .eq("user_id", uid)
-        .not("id", "in", `(${goalRows.map((r) => `"${r.id}"`).join(",")})`);
-    } else {
-      await sb.from("savings_goals").delete().eq("user_id", uid);
+        .upsert(goalRows, { onConflict: "id" });
+      if (error) throw new Error(`savings_goals upsert: ${error.message}`);
     }
+    await pruneDeleted(sb, "savings_goals", uid, state.savingsGoals.map((g) => g.id));
 
-    // Merchant memory — replace strategy: delete then insert (small set)
-    await sb.from("merchant_memory").delete().eq("user_id", uid);
-    const memRows = state.merchantMemory.map((m) => ({
-      user_id: uid,
-      normalized_merchant: m.key,
-      display_name: m.displayName,
-      category_id: m.categoryId,
-    }));
-    if (memRows.length > 0) {
-      await sb.from("merchant_memory").insert(memRows);
+    // -------------------------------------------------------------------------
+    // Merchant memory — replace strategy (small set).
+    // -------------------------------------------------------------------------
+    {
+      const del = await sb.from("merchant_memory").delete().eq("user_id", uid);
+      if (del.error) throw new Error(`merchant_memory delete: ${del.error.message}`);
+      const memRows = state.merchantMemory.map((m) => ({
+        user_id: uid,
+        normalized_merchant: m.key,
+        display_name: m.displayName,
+        category_id: m.categoryId,
+      }));
+      if (memRows.length > 0) {
+        const ins = await sb.from("merchant_memory").insert(memRows);
+        if (ins.error) throw new Error(`merchant_memory insert: ${ins.error.message}`);
+      }
     }
 
     // User settings
-    await sb
-      .from("user_settings")
-      .upsert(
+    {
+      const { error } = await sb.from("user_settings").upsert(
         { user_id: uid, advanced_mode: state.advancedMode },
         { onConflict: "user_id" },
       );
+      if (error) throw new Error(`user_settings upsert: ${error.message}`);
+    }
   }
 
   async reset(): Promise<void> {
@@ -256,6 +293,32 @@ export class SupabaseStorageAdapter implements StorageAdapter {
       sb.from("user_settings").delete().eq("user_id", uid),
     ]);
   }
+}
+
+// -----------------------------------------------------------------------------
+// Helper: delete rows from `table` for `userId` whose ids aren't in keepIds.
+// Computes the diff against the database to avoid the dangerous
+// `not.id.in.(...)` empty-list edge case (which deletes everything).
+// -----------------------------------------------------------------------------
+async function pruneDeleted(
+  sb: NonNullable<ReturnType<typeof getSupabaseClient>>,
+  table: "categories" | "transactions" | "savings_goals",
+  userId: string,
+  keepIds: string[],
+): Promise<void> {
+  const { data, error } = await sb.from(table).select("id").eq("user_id", userId);
+  if (error) throw new Error(`${table} prune select: ${error.message}`);
+  const keepSet = new Set(keepIds);
+  const toDelete = (data ?? [])
+    .map((r) => (r as { id: string }).id)
+    .filter((id) => !keepSet.has(id));
+  if (toDelete.length === 0) return;
+  const { error: delErr } = await sb
+    .from(table)
+    .delete()
+    .eq("user_id", userId)
+    .in("id", toDelete);
+  if (delErr) throw new Error(`${table} prune delete: ${delErr.message}`);
 }
 
 // -----------------------------------------------------------------------------

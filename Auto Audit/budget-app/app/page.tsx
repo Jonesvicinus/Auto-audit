@@ -61,12 +61,9 @@ export default function LandingPage() {
                     </Link>
                   </>
                 ) : (
-                  <button
-                    onClick={startDemo}
-                    className="sm:hidden inline-flex"
-                  >
-                    <Button size="sm">Open demo</Button>
-                  </button>
+                  <Button size="sm" onClick={startDemo} className="sm:hidden inline-flex">
+                    Open demo
+                  </Button>
                 )}
               </>
             )}
@@ -97,21 +94,18 @@ export default function LandingPage() {
                 </Button>
               </Link>
             ) : (
-              <button onClick={startDemo}>
-                <Button size="lg" rightIcon={<ArrowRight className="w-5 h-5" />}>
-                  Open the app
-                </Button>
-              </button>
-            )}
-            <button onClick={startDemo}>
-              <Button
-                size="lg"
-                variant="outline"
-                leftIcon={<Sparkles className="w-5 h-5" />}
-              >
-                Try the demo
+              <Button size="lg" onClick={startDemo} rightIcon={<ArrowRight className="w-5 h-5" />}>
+                Open the app
               </Button>
-            </button>
+            )}
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={startDemo}
+              leftIcon={<Sparkles className="w-5 h-5" />}
+            >
+              Try the demo
+            </Button>
           </div>
           <p className="mt-3 text-xs text-gray-500 dark:text-gray-500">
             Demo includes 12 months of realistic student spending. No signup needed.
@@ -299,18 +293,16 @@ export default function LandingPage() {
                 <Button size="lg">Create your account</Button>
               </Link>
             )}
-            <button onClick={startDemo}>
-              <Button size="lg" variant="outline" leftIcon={<LayoutDashboard className="w-5 h-5" />}>
-                Try the demo
-              </Button>
-            </button>
+            <Button size="lg" variant="outline" onClick={startDemo} leftIcon={<LayoutDashboard className="w-5 h-5" />}>
+              Try the demo
+            </Button>
           </div>
         </div>
       </section>
 
       <footer className="py-10 border-t border-gray-100 dark:border-neutral-900">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 flex flex-wrap items-center justify-between gap-4 text-sm text-gray-500 dark:text-gray-500">
-          <p>© {new Date().getFullYear()} Auto Audit — v1.2</p>
+          <p>© {new Date().getFullYear()} Auto Audit — v1.3</p>
           <p>Demo data is local to your browser. Sign up to sync across devices.</p>
         </div>
       </footer>

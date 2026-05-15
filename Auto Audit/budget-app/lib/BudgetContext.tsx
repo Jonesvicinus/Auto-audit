@@ -25,15 +25,18 @@ import {
   SupabaseStorageAdapter,
 } from "./storage";
 import { upsertMemory } from "./merchantMemory";
+import { merchantFamilyKey } from "./fuzzyMatch";
 import { allocateSlackToOther, ensureBudgetForMonth } from "./budgetCalc";
 import { currentMonthKey } from "./months";
 import { useAuth } from "./AuthContext";
+import { useToast } from "@/components/ui/Toast";
 
 interface BudgetContextValue extends AppState {
   // state mutations
   addTransaction: (tx: Omit<Transaction, "id">) => Transaction;
   updateTransaction: (id: string, patch: Partial<Omit<Transaction, "id">>) => void;
   deleteTransaction: (id: string) => void;
+  clearTransactionsForMonth: (month: string) => void;
 
   addCategory: (cat: Omit<Category, "id">) => Category;
   updateCategory: (id: string, patch: Partial<Omit<Category, "id">>) => void;
@@ -66,6 +69,7 @@ function makeId(prefix: string) {
 
 export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const { mode, user, isLoading: authLoading } = useAuth();
+  const toast = useToast();
 
   // Start with built-in demo state so SSR and first render agree.
   // We replace it after auth resolves and the right adapter loads.
@@ -73,6 +77,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const adapterRef = useRef<StorageAdapter | null>(null);
   const lastModeRef = useRef<string>("");
+  const lastSaveErrorRef = useRef<string>("");
 
   // Pick the right adapter based on auth mode and (re)hydrate when it changes.
   useEffect(() => {
@@ -138,19 +143,28 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     };
   }, [mode, user, authLoading]);
 
-  // Persist on every state change after hydration. Supabase saves are async
-  // and best-effort; we don't block the UI on them.
+  // Persist on every state change after hydration. Supabase saves are async;
+  // failures surface as a toast so the user knows their data didn't sync.
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!hydrated || !adapterRef.current) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
+    const adapter = adapterRef.current;
     saveTimer.current = setTimeout(() => {
-      void adapterRef.current?.save(state);
+      adapter.save(state).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        // De-dupe rapid-fire identical errors so the toast doesn't stack.
+        if (msg === lastSaveErrorRef.current) return;
+        lastSaveErrorRef.current = msg;
+        // eslint-disable-next-line no-console
+        console.error("[BudgetContext] save failed:", err);
+        toast.danger("Couldn't save changes", "We'll retry on your next edit.");
+      });
     }, 250);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [state, hydrated]);
+  }, [state, hydrated, toast]);
 
   const otherCategoryId = useMemo(
     () => state.categories.find((c) => c.isOther)?.id ?? state.categories[0]?.id ?? "",
@@ -174,16 +188,57 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
 
   const updateTransaction = useCallback(
     (id: string, patch: Partial<Omit<Transaction, "id">>) => {
-      setState((s) => ({
-        ...s,
-        transactions: s.transactions.map((t) => (t.id === id ? { ...t, ...patch } : t)),
-      }));
+      setState((s) => {
+        const original = s.transactions.find((t) => t.id === id);
+        if (!original) return s;
+
+        const categoryChanged =
+          patch.categoryId !== undefined && patch.categoryId !== original.categoryId;
+        if (!categoryChanged) {
+          return {
+            ...s,
+            transactions: s.transactions.map((t) =>
+              t.id === id ? { ...t, ...patch } : t,
+            ),
+          };
+        }
+
+        const nextCategoryId = patch.categoryId!;
+        const targetMerchant = (patch.merchant ?? original.merchant).trim();
+        const targetMerchantKey = merchantFamilyKey(targetMerchant);
+        const transactions = s.transactions.map((t) => {
+          if (t.id === id) return { ...t, ...patch };
+          if (targetMerchantKey && merchantFamilyKey(t.merchant) === targetMerchantKey) {
+            return { ...t, categoryId: nextCategoryId };
+          }
+          return t;
+        });
+
+        return {
+          ...s,
+          transactions,
+          merchantMemory: targetMerchantKey
+            ? upsertMemory(s.merchantMemory, targetMerchant, nextCategoryId, true)
+            : s.merchantMemory,
+        };
+      });
     },
     [],
   );
 
   const deleteTransaction = useCallback((id: string) => {
     setState((s) => ({ ...s, transactions: s.transactions.filter((t) => t.id !== id) }));
+  }, []);
+
+  const clearTransactionsForMonth = useCallback((month: string) => {
+    setState((s) => {
+      const transactions = s.transactions.filter((t) => {
+        // Compare by string prefix to avoid UTC-vs-local timezone mismatch
+        // when bare "YYYY-MM-DD" strings are parsed by new Date().
+        return t.date.slice(0, 7) !== month;
+      });
+      return transactions.length === s.transactions.length ? s : { ...s, transactions };
+    });
   }, []);
 
   // ---------------------------------------------------------------------------
@@ -326,6 +381,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     addTransaction,
     updateTransaction,
     deleteTransaction,
+    clearTransactionsForMonth,
     addCategory,
     updateCategory,
     deleteCategory,
