@@ -15,6 +15,7 @@ import type {
   MonthlyBudget,
   SavingsGoal,
   Transaction,
+  User,
 } from "@/types";
 import {
   buildDemoState,
@@ -63,8 +64,23 @@ interface BudgetContextValue extends AppState {
 
 const BudgetContext = createContext<BudgetContextValue | null>(null);
 
-function makeId(prefix: string) {
-  return `${prefix}-${Math.random().toString(36).slice(2, 9)}-${Date.now().toString(36)}`;
+function makeId(prefix: string): string {
+  return `${prefix}-${crypto.randomUUID()}`;
+}
+
+/** Maps the auth layer's AuthUser to the domain User type, filling in defaults. */
+function authUserToUser(u: {
+  id: string;
+  email: string;
+  name?: string;
+  createdAt?: string;
+}): User {
+  return {
+    id: u.id,
+    name: u.name ?? u.email.split("@")[0],
+    email: u.email,
+    createdAt: u.createdAt ?? new Date().toISOString(),
+  };
 }
 
 export function BudgetProvider({ children }: { children: React.ReactNode }) {
@@ -78,6 +94,8 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const adapterRef = useRef<StorageAdapter | null>(null);
   const lastModeRef = useRef<string>("");
   const lastSaveErrorRef = useRef<string>("");
+  const saveInFlightRef = useRef(false);
+  const pendingStateRef = useRef<AppState | null>(null);
 
   // Pick the right adapter based on auth mode and (re)hydrate when it changes.
   useEffect(() => {
@@ -95,22 +113,13 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       let nextState: AppState;
 
       if (mode === "supabase" && user) {
-        adapter = new SupabaseStorageAdapter({
-          id: user.id,
-          name: user.name ?? user.email.split("@")[0],
-          email: user.email,
-          createdAt: user.createdAt ?? new Date().toISOString(),
-        });
+        const domainUser = authUserToUser(user);
+        adapter = new SupabaseStorageAdapter(domainUser);
         const loaded = await adapter.load();
         if (loaded) {
           nextState = loaded;
         } else {
-          nextState = buildEmptyAuthenticatedState({
-            id: user.id,
-            name: user.name ?? user.email.split("@")[0],
-            email: user.email,
-            createdAt: user.createdAt ?? new Date().toISOString(),
-          });
+          nextState = buildEmptyAuthenticatedState(domainUser);
           await adapter.save(nextState);
         }
       } else if (mode === "demo") {
@@ -149,18 +158,44 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated || !adapterRef.current) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
+
     const adapter = adapterRef.current;
+    const stateSnapshot = state;
+
     saveTimer.current = setTimeout(() => {
-      adapter.save(state).catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        // De-dupe rapid-fire identical errors so the toast doesn't stack.
-        if (msg === lastSaveErrorRef.current) return;
-        lastSaveErrorRef.current = msg;
-        // eslint-disable-next-line no-console
-        console.error("[BudgetContext] save failed:", err);
-        toast.danger("Couldn't save changes", "We'll retry on your next edit.");
+      const runSave = async (s: AppState) => {
+        try {
+          await adapter.save(s);
+          lastSaveErrorRef.current = "";
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg !== lastSaveErrorRef.current) {
+            lastSaveErrorRef.current = msg;
+            console.error("[BudgetContext] save failed:", err);
+            toast.danger("Couldn't save changes", "We'll retry on your next edit.");
+          }
+        }
+      };
+
+      if (saveInFlightRef.current) {
+        pendingStateRef.current = stateSnapshot;
+        return;
+      }
+
+      saveInFlightRef.current = true;
+      runSave(stateSnapshot).finally(async () => {
+        const pending = pendingStateRef.current;
+        pendingStateRef.current = null;
+        saveInFlightRef.current = false;
+        if (pending) {
+          saveInFlightRef.current = true;
+          await runSave(pending).finally(() => {
+            saveInFlightRef.current = false;
+          });
+        }
       });
     }, 250);
+
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
@@ -264,7 +299,9 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     setState((s) => {
       const cat = s.categories.find((c) => c.id === id);
       if (!cat || s.categories.length <= 1) return s;
-      const fallback = s.categories.find((c) => c.id !== id);
+      const fallback =
+        s.categories.find((c) => c.id !== id && c.isOther) ??
+        s.categories.find((c) => c.id !== id);
       if (!fallback) return s;
       const transactions = s.transactions.map((t) =>
         t.categoryId === id ? { ...t, categoryId: fallback.id } : t,
@@ -350,50 +387,80 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, advancedMode: v }));
   }, []);
 
-  const resetDemo = useCallback(() => {
-    void adapterRef.current?.reset();
+  const resetDemo = useCallback(async () => {
+    try {
+      await adapterRef.current?.reset();
+    } catch {
+      // best-effort reset — continue to reseed regardless
+    }
     const fresh =
       mode === "supabase" && user
-        ? buildEmptyAuthenticatedState({
-            id: user.id,
-            name: user.name ?? user.email.split("@")[0],
-            email: user.email,
-            createdAt: user.createdAt ?? new Date().toISOString(),
-          })
+        ? buildEmptyAuthenticatedState(authUserToUser(user))
         : buildDemoState();
     setState(fresh);
-    void adapterRef.current?.save(fresh);
+    try {
+      await adapterRef.current?.save(fresh);
+    } catch {
+      // save errors already surface via the debounced save effect
+    }
   }, [mode, user]);
 
   // Reseed demo data — useful from the demo banner "load fresh sample".
-  const reseedDemoData = useCallback(() => {
+  const reseedDemoData = useCallback(async () => {
     if (mode !== "demo") return;
     const fresh = buildDemoState();
     setState(fresh);
-    void adapterRef.current?.save(fresh);
+    try {
+      await adapterRef.current?.save(fresh);
+    } catch {
+      // save errors already surface via the debounced save effect
+    }
   }, [mode]);
 
-  const value: BudgetContextValue = {
-    ...state,
-    hydrated,
-    otherCategoryId,
-    isEmptyAccount,
-    addTransaction,
-    updateTransaction,
-    deleteTransaction,
-    clearTransactionsForMonth,
-    addCategory,
-    updateCategory,
-    deleteCategory,
-    upsertBudget,
-    addSavingsGoal,
-    updateSavingsGoal,
-    deleteSavingsGoal,
-    rememberMerchant,
-    setAdvancedMode,
-    resetDemo,
-    reseedDemoData,
-  };
+  const value = useMemo<BudgetContextValue>(
+    () => ({
+      ...state,
+      hydrated,
+      otherCategoryId,
+      isEmptyAccount,
+      addTransaction,
+      updateTransaction,
+      deleteTransaction,
+      clearTransactionsForMonth,
+      addCategory,
+      updateCategory,
+      deleteCategory,
+      upsertBudget,
+      addSavingsGoal,
+      updateSavingsGoal,
+      deleteSavingsGoal,
+      rememberMerchant,
+      setAdvancedMode,
+      resetDemo,
+      reseedDemoData,
+    }),
+    [
+      state,
+      hydrated,
+      otherCategoryId,
+      isEmptyAccount,
+      addTransaction,
+      updateTransaction,
+      deleteTransaction,
+      clearTransactionsForMonth,
+      addCategory,
+      updateCategory,
+      deleteCategory,
+      upsertBudget,
+      addSavingsGoal,
+      updateSavingsGoal,
+      deleteSavingsGoal,
+      rememberMerchant,
+      setAdvancedMode,
+      resetDemo,
+      reseedDemoData,
+    ],
+  );
 
   return <BudgetContext.Provider value={value}>{children}</BudgetContext.Provider>;
 }
