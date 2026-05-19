@@ -20,7 +20,6 @@ import type {
 import {
   buildDemoState,
   buildEmptyAuthenticatedState,
-  buildInitialState,
   LocalStorageAdapter,
   StorageAdapter,
   SupabaseStorageAdapter,
@@ -89,7 +88,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
 
   // Start with built-in demo state so SSR and first render agree.
   // We replace it after auth resolves and the right adapter loads.
-  const [state, setState] = useState<AppState>(() => buildInitialState());
+  const [state, setState] = useState<AppState>(() => buildDemoState());
   const [hydrated, setHydrated] = useState(false);
   const adapterRef = useRef<StorageAdapter | null>(null);
   const lastModeRef = useRef<string>("");

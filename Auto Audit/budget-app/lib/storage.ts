@@ -26,18 +26,40 @@ export interface StorageAdapter {
 // Different namespaces let demo and authenticated state coexist without
 // stomping on each other.
 // -----------------------------------------------------------------------------
+export const CURRENT_STORAGE_VERSION = "v1.4";
+export const LEGACY_STORAGE_VERSIONS = ["v1.1", "v1.2", "v1.3"] as const;
+
 export class LocalStorageAdapter implements StorageAdapter {
-  private key: string;
+  private readonly namespace: string;
+
   constructor(namespace: string = "demo") {
-    this.key = `auto-audit:v1.1:${namespace}`;
+    this.namespace = namespace;
+  }
+
+  private get currentKey(): string {
+    return `auto-audit:${CURRENT_STORAGE_VERSION}:${this.namespace}`;
+  }
+
+  private legacyKey(version: string): string {
+    return `auto-audit:${version}:${this.namespace}`;
   }
 
   async load(): Promise<AppState | null> {
     if (typeof window === "undefined") return null;
     try {
-      const raw = window.localStorage.getItem(this.key);
-      if (!raw) return null;
-      return JSON.parse(raw) as AppState;
+      const raw = window.localStorage.getItem(this.currentKey);
+      if (raw) return JSON.parse(raw) as AppState;
+
+      // Migrate from legacy versions — newest first so we get the freshest data
+      for (const version of [...LEGACY_STORAGE_VERSIONS].reverse()) {
+        const legacyRaw = window.localStorage.getItem(this.legacyKey(version));
+        if (legacyRaw) {
+          window.localStorage.setItem(this.currentKey, legacyRaw);
+          window.localStorage.removeItem(this.legacyKey(version));
+          return JSON.parse(legacyRaw) as AppState;
+        }
+      }
+      return null;
     } catch {
       return null;
     }
@@ -46,15 +68,27 @@ export class LocalStorageAdapter implements StorageAdapter {
   async save(state: AppState): Promise<void> {
     if (typeof window === "undefined") return;
     try {
-      window.localStorage.setItem(this.key, JSON.stringify(state));
-    } catch {
-      // ignore quota errors for the prototype
+      window.localStorage.setItem(this.currentKey, JSON.stringify(state));
+    } catch (err) {
+      if (
+        err instanceof DOMException &&
+        (err.name === "QuotaExceededError" || err.name === "NS_ERROR_DOM_QUOTA_REACHED")
+      ) {
+        throw new Error(
+          "Storage full: your browser's local storage is at capacity. " +
+            "Clear some space or sign up to sync your data to the cloud.",
+        );
+      }
+      throw err;
     }
   }
 
   async reset(): Promise<void> {
     if (typeof window === "undefined") return;
-    window.localStorage.removeItem(this.key);
+    window.localStorage.removeItem(this.currentKey);
+    for (const version of LEGACY_STORAGE_VERSIONS) {
+      window.localStorage.removeItem(this.legacyKey(version));
+    }
   }
 }
 
@@ -361,7 +395,3 @@ export function buildEmptyAuthenticatedState(user: User): AppState {
   };
 }
 
-// Backwards-compatible alias: the original v1.0 `buildInitialState()` path.
-export function buildInitialState(): AppState {
-  return buildDemoState();
-}

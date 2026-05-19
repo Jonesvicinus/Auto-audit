@@ -10,6 +10,7 @@ import React, {
   useState,
 } from "react";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient";
+import { CURRENT_STORAGE_VERSION, LEGACY_STORAGE_VERSIONS } from "./storage";
 import type {
   AuthFormError,
   AuthMode,
@@ -18,7 +19,6 @@ import type {
 } from "@/types/auth";
 
 const DEMO_FLAG_KEY = "auto-audit:demo-mode";
-const DEMO_STORAGE_KEY = "auto-audit:v1.1:demo";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -133,7 +133,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null);
     if (typeof window !== "undefined") {
-      window.localStorage.removeItem(DEMO_STORAGE_KEY);
+      for (const version of [CURRENT_STORAGE_VERSION, ...LEGACY_STORAGE_VERSIONS]) {
+        window.localStorage.removeItem(`auto-audit:${version}:demo`);
+      }
       window.localStorage.setItem(DEMO_FLAG_KEY, "1");
     }
     setIsDemo(true);
