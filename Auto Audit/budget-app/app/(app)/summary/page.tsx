@@ -29,7 +29,14 @@ export default function MonthlySummaryPage() {
   const insight = useMemo(() => generateInsight(summary), [summary]);
   const monthTx = transactionsInMonth(transactions, month);
 
-  if (!hydrated) return null;
+  if (!hydrated) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        <div className="h-8 w-48 rounded-lg bg-gray-100 dark:bg-neutral-800" />
+        <div className="h-64 rounded-2xl bg-gray-100 dark:bg-neutral-800" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">

@@ -3,6 +3,12 @@ import type { Category, MerchantMemoryEntry } from "@/types";
 import { suggestCategory } from "./merchantMemory";
 import { suggestCategoryByHeuristic } from "./categoryHeuristics";
 
+let _csvRowCounter = 0;
+export function nextCsvRowId(): string {
+  _csvRowCounter += 1;
+  return `csv-${Date.now().toString(36)}-${_csvRowCounter}`;
+}
+
 // -----------------------------------------------------------------------------
 // CSV import helpers — parsing, field mapping, normalization, categorization.
 // All work happens in the browser; no backend.
@@ -318,7 +324,7 @@ export function normalizeRows(
     }
 
     rows.push({
-      id: `csv-${sourceRow}-${Math.random().toString(36).slice(2, 7)}`,
+      id: nextCsvRowId(),
       sourceRow,
       date,
       merchant: merchantRaw.trim(),

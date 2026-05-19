@@ -68,7 +68,9 @@ export default function AddExpensePage() {
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
-    const amt = parseFloat(amount);
+    const v = parseFloat(amount);
+    const amt = Number.isFinite(v) && v > 0 ? v : 0;
+    if (amt === 0) return;
     const tx = addTransaction({
       amount: amt,
       merchant: merchant.trim(),

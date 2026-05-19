@@ -82,7 +82,7 @@ export function merchantFamilyKey(name: string): string {
   return tokens.slice(0, 3).join(" ") || normalized;
 }
 
-// Classic Levenshtein distance (iterative, O(m*n) space).
+// Classic Levenshtein distance (iterative, O(n) space with two-row rolling array).
 function levenshtein(a: string, b: string): number {
   if (a === b) return 0;
   if (!a.length) return b.length;

@@ -21,6 +21,8 @@ import { Badge } from "@/components/ui/Badge";
 import { useBudget } from "@/lib/BudgetContext";
 import { useToast } from "@/components/ui/Toast";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { activeCategoriesForMonth } from "@/lib/categorySchedule";
+import type { Category, MonthKey } from "@/types";
 import {
   type CsvField,
   type CsvParseError,
@@ -95,6 +97,20 @@ export function StatementImportPanel() {
     ],
     [headers],
   );
+
+  const activeCatsByMonth = useMemo(() => {
+    const map = new Map<string, Category[]>();
+    for (const row of reviewRows) {
+      const mk = row.parsed.date.slice(0, 7);
+      if (!map.has(mk)) {
+        map.set(
+          mk,
+          activeCategoriesForMonth(categories, mk as MonthKey, [otherCategoryId]),
+        );
+      }
+    }
+    return map;
+  }, [categories, reviewRows, otherCategoryId]);
 
   const reset = useCallback(() => {
     setStage("idle");
@@ -703,9 +719,9 @@ export function StatementImportPanel() {
                           }
                           className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-neutral-700 rounded-md bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
                         >
-                          {categoryOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
+                          {(activeCatsByMonth.get(r.parsed.date.slice(0, 7)) ?? []).map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                              {cat.name}
                             </option>
                           ))}
                         </select>

@@ -31,9 +31,11 @@ export const LEGACY_STORAGE_VERSIONS = ["v1.1", "v1.2", "v1.3"] as const;
 
 export class LocalStorageAdapter implements StorageAdapter {
   private readonly namespace: string;
+  private readonly readOnly: boolean;
 
-  constructor(namespace: string = "demo") {
+  constructor(namespace: string = "demo", readOnly = false) {
     this.namespace = namespace;
+    this.readOnly = readOnly;
   }
 
   private get currentKey(): string {
@@ -66,6 +68,7 @@ export class LocalStorageAdapter implements StorageAdapter {
   }
 
   async save(state: AppState): Promise<void> {
+    if (this.readOnly) return;
     if (typeof window === "undefined") return;
     try {
       window.localStorage.setItem(this.currentKey, JSON.stringify(state));
@@ -84,6 +87,7 @@ export class LocalStorageAdapter implements StorageAdapter {
   }
 
   async reset(): Promise<void> {
+    if (this.readOnly) return;
     if (typeof window === "undefined") return;
     window.localStorage.removeItem(this.currentKey);
     for (const version of LEGACY_STORAGE_VERSIONS) {
@@ -181,6 +185,14 @@ export class SupabaseStorageAdapter implements StorageAdapter {
     const sb = getSupabaseClient();
     if (!sb) return;
     const uid = this.user.id;
+
+    // Safety guard: refuse to overwrite a different user's data if the
+    // adapter was somehow invoked with a stale snapshot.
+    if (state.user.id !== uid) {
+      throw new Error(
+        `save() called with state for user ${state.user.id} but adapter is for ${uid}`,
+      );
+    }
 
     // -------------------------------------------------------------------------
     // Categories — upsert first so any new transaction.category_id references
@@ -287,20 +299,39 @@ export class SupabaseStorageAdapter implements StorageAdapter {
     await pruneDeleted(sb, "savings_goals", uid, state.savingsGoals.map((g) => g.id));
 
     // -------------------------------------------------------------------------
-    // Merchant memory — replace strategy (small set).
+    // Merchant memory — diff-based upsert (avoids delete-all gap).
     // -------------------------------------------------------------------------
     {
-      const del = await sb.from("merchant_memory").delete().eq("user_id", uid);
-      if (del.error) throw new Error(`merchant_memory delete: ${del.error.message}`);
       const memRows = state.merchantMemory.map((m) => ({
         user_id: uid,
         normalized_merchant: m.key,
         display_name: m.displayName,
         category_id: m.categoryId,
+        last_seen_at: new Date().toISOString(),
       }));
       if (memRows.length > 0) {
-        const ins = await sb.from("merchant_memory").insert(memRows);
-        if (ins.error) throw new Error(`merchant_memory insert: ${ins.error.message}`);
+        const { error: upsErr } = await sb
+          .from("merchant_memory")
+          .upsert(memRows, { onConflict: "user_id,normalized_merchant" });
+        if (upsErr) throw new Error(`merchant_memory upsert: ${upsErr.message}`);
+      }
+      // Prune keys no longer in app state.
+      const keepKeys = new Set(state.merchantMemory.map((m) => m.key));
+      const { data: existingMem, error: selErr } = await sb
+        .from("merchant_memory")
+        .select("normalized_merchant")
+        .eq("user_id", uid);
+      if (selErr) throw new Error(`merchant_memory prune select: ${selErr.message}`);
+      const toDelete = (existingMem ?? [])
+        .map((r) => (r as { normalized_merchant: string }).normalized_merchant)
+        .filter((k) => !keepKeys.has(k));
+      if (toDelete.length > 0) {
+        const { error: delErr } = await sb
+          .from("merchant_memory")
+          .delete()
+          .eq("user_id", uid)
+          .in("normalized_merchant", toDelete);
+        if (delErr) throw new Error(`merchant_memory prune delete: ${delErr.message}`);
       }
     }
 

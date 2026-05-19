@@ -32,6 +32,10 @@ const PALETTE = [
   "#6b7280",
 ];
 
+// Safe: only allow 6-digit hex colors from our palette
+const safeColor = (color: string) =>
+  /^#[0-9a-f]{6}$/i.test(color) ? color : "#6b7280";
+
 function nextCategoryColor(categories: { color: string }[]): string {
   const used = new Set(categories.map((c) => c.color.toLowerCase()));
   const paletteHit = PALETTE.find((color) => !used.has(color.toLowerCase()));
@@ -162,7 +166,9 @@ export default function BudgetSettingsPage() {
   function handleDeleteCategory(id: string) {
     const cat = categories.find((c) => c.id === id);
     if (!cat) return;
-    const fallback = categories.find((c) => c.id !== id);
+    const fallback =
+      categories.find((c) => c.id !== id && c.isOther) ??
+      categories.find((c) => c.id !== id);
     if (!fallback) {
       toast.warn("Keep one category", "Add another category before deleting this one.");
       return;
@@ -179,12 +185,12 @@ export default function BudgetSettingsPage() {
     }
   }
 
-  function handleResetDemo() {
+  async function handleResetDemo() {
     const ok = window.confirm(
       "Reset all data for this account? This can't be undone.",
     );
     if (!ok) return;
-    resetDemo();
+    await resetDemo();
     toast.info("Data reset");
   }
 
@@ -222,7 +228,10 @@ export default function BudgetSettingsPage() {
             step="1"
             min="0"
             value={total === 0 ? "" : total}
-            onChange={(e) => setTotal(parseFloat(e.target.value) || 0)}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              setTotal(Number.isFinite(v) && v >= 0 ? v : 0);
+            }}
             leftAdornment={<span>$</span>}
           />
           <div className="mt-5 rounded-xl bg-gray-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-800 p-4 space-y-2 text-sm">
@@ -277,7 +286,7 @@ export default function BudgetSettingsPage() {
                     type="button"
                     aria-label={`Change ${c.name} color`}
                     className="block w-4 h-4 rounded-full ring-2 ring-white dark:ring-neutral-900 shadow-sm focus:outline-none focus-visible:ring-brand-500"
-                    style={{ backgroundColor: c.color }}
+                    style={{ backgroundColor: safeColor(c.color) }}
                   />
                   <div className="absolute left-0 top-8 z-20 hidden w-[252px] group-focus-within:block group-hover:block rounded-2xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-4 shadow-pop">
                     <p className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -310,12 +319,11 @@ export default function BudgetSettingsPage() {
                     step="1"
                     min="0"
                     value={limits[c.id] === 0 ? "" : (limits[c.id] ?? 0)}
-                    onChange={(e) =>
-                      setLimits((l) => ({
-                        ...l,
-                        [c.id]: parseFloat(e.target.value) || 0,
-                      }))
-                    }
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      const safe = Number.isFinite(v) && v >= 0 ? v : 0;
+                      setLimits((l) => ({ ...l, [c.id]: safe }));
+                    }}
                     leftAdornment={<span>$</span>}
                   />
                 </div>

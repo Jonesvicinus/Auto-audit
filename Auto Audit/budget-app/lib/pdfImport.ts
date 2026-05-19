@@ -6,6 +6,7 @@
 // Amount"-style statements are likely to work too.
 
 import type { ParsedCsvRow } from "./csvImport";
+import { nextCsvRowId } from "./csvImport";
 
 // pdf.js requires a worker URL. We dynamically import the library client-side
 // only and pin the worker to unpkg at the same version we have installed, so
@@ -15,7 +16,8 @@ async function getPdfJs(): Promise<typeof import("pdfjs-dist")> {
   if (!pdfjsPromise) {
     pdfjsPromise = (async () => {
       const pdfjs = await import("pdfjs-dist");
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+      // Worker served from /public so Next.js doesn't try to bundle it.
+      pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
       return pdfjs;
     })();
   }
@@ -238,7 +240,7 @@ export async function parseStatementPdf(file: File): Promise<PdfImportResult> {
     const year = inferYear(tx.transMonth, cycleStart, cycleEnd);
     const date = `${year}-${pad(tx.transMonth)}-${pad(tx.transDay)}`;
     return {
-      id: `pdf-${i}-${Math.random().toString(36).slice(2, 7)}`,
+      id: nextCsvRowId(),
       sourceRow: i + 1,
       date,
       merchant: tx.description,

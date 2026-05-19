@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isSameMonth, monthKeyOf, addMonths, trailingMonths, formatMonth, currentMonthKey } from "../months";
+import { isSameMonth, monthKeyOf, addMonths, trailingMonths } from "../months";
 
 describe("isSameMonth", () => {
   it("treats the first of a month as belonging to that month", () => {

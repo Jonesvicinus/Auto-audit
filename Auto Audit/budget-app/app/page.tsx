@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -20,10 +21,17 @@ import { useAuth } from "@/lib/AuthContext";
 export default function LandingPage() {
   const router = useRouter();
   const { enterDemoMode, supabaseConfigured, isAuthenticated } = useAuth();
+  const [isStartingDemo, setIsStartingDemo] = useState(false);
 
   async function startDemo() {
-    await enterDemoMode();
-    router.push("/dashboard");
+    if (isStartingDemo) return;
+    setIsStartingDemo(true);
+    try {
+      await enterDemoMode();
+      router.push("/dashboard");
+    } finally {
+      setIsStartingDemo(false);
+    }
   }
 
   return (
@@ -47,9 +55,10 @@ export default function LandingPage() {
               <>
                 <button
                   onClick={startDemo}
-                  className="hidden sm:inline-flex text-sm font-medium px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-900"
+                  disabled={isStartingDemo}
+                  className="hidden sm:inline-flex text-sm font-medium px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-900 disabled:opacity-60 disabled:pointer-events-none"
                 >
-                  Try the demo
+                  {isStartingDemo ? "Loading…" : "Try the demo"}
                 </button>
                 {supabaseConfigured ? (
                   <>
@@ -61,8 +70,8 @@ export default function LandingPage() {
                     </Link>
                   </>
                 ) : (
-                  <Button size="sm" onClick={startDemo} className="sm:hidden inline-flex">
-                    Open demo
+                  <Button size="sm" onClick={startDemo} disabled={isStartingDemo} className="sm:hidden inline-flex">
+                    {isStartingDemo ? "Loading…" : "Open demo"}
                   </Button>
                 )}
               </>
@@ -94,17 +103,18 @@ export default function LandingPage() {
                 </Button>
               </Link>
             ) : (
-              <Button size="lg" onClick={startDemo} rightIcon={<ArrowRight className="w-5 h-5" />}>
-                Open the app
+              <Button size="lg" onClick={startDemo} disabled={isStartingDemo} rightIcon={<ArrowRight className="w-5 h-5" />}>
+                {isStartingDemo ? "Loading…" : "Open the app"}
               </Button>
             )}
             <Button
               size="lg"
               variant="outline"
               onClick={startDemo}
+              disabled={isStartingDemo}
               leftIcon={<Sparkles className="w-5 h-5" />}
             >
-              Try the demo
+              {isStartingDemo ? "Loading…" : "Try the demo"}
             </Button>
           </div>
           <p className="mt-3 text-xs text-gray-500 dark:text-gray-500">
@@ -293,8 +303,8 @@ export default function LandingPage() {
                 <Button size="lg">Create your account</Button>
               </Link>
             )}
-            <Button size="lg" variant="outline" onClick={startDemo} leftIcon={<LayoutDashboard className="w-5 h-5" />}>
-              Try the demo
+            <Button size="lg" variant="outline" onClick={startDemo} disabled={isStartingDemo} leftIcon={<LayoutDashboard className="w-5 h-5" />}>
+              {isStartingDemo ? "Loading…" : "Try the demo"}
             </Button>
           </div>
         </div>
@@ -302,7 +312,7 @@ export default function LandingPage() {
 
       <footer className="py-10 border-t border-gray-100 dark:border-neutral-900">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 flex flex-wrap items-center justify-between gap-4 text-sm text-gray-500 dark:text-gray-500">
-          <p>© {new Date().getFullYear()} Auto Audit — v1.3</p>
+          <p>© {new Date().getFullYear()} Auto Audit — v1.4</p>
           <p>Demo data is local to your browser. Sign up to sync across devices.</p>
         </div>
       </footer>

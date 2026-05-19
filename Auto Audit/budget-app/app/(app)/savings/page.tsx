@@ -34,11 +34,13 @@ export default function SavingsPage() {
   const totalTarget = savingsGoals.reduce((s, g) => s + g.targetAmount, 0);
 
   function handleCreate() {
-    if (!name.trim() || !parseFloat(target)) return;
+    const tv = parseFloat(target);
+    const safeTarget = Number.isFinite(tv) && tv > 0 ? tv : 0;
+    if (!name.trim() || safeTarget === 0) return;
     addSavingsGoal({
       name: name.trim(),
       type,
-      targetAmount: parseFloat(target),
+      targetAmount: safeTarget,
       savedAmount: 0,
       targetDate: targetDate
         ? new Date(targetDate + "T12:00:00").toISOString()
@@ -52,7 +54,14 @@ export default function SavingsPage() {
     setShowForm(false);
   }
 
-  if (!hydrated) return null;
+  if (!hydrated) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        <div className="h-8 w-48 rounded-lg bg-gray-100 dark:bg-neutral-800" />
+        <div className="h-64 rounded-2xl bg-gray-100 dark:bg-neutral-800" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -136,7 +145,7 @@ export default function SavingsPage() {
               <Button
                 size="sm"
                 onClick={handleCreate}
-                disabled={!name.trim() || !parseFloat(target)}
+                disabled={!name.trim() || !(Number.isFinite(parseFloat(target)) && parseFloat(target) > 0)}
               >
                 Create Goal
               </Button>

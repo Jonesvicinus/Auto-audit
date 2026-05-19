@@ -35,6 +35,10 @@ import { generateAlerts } from "@/lib/alerts";
 import { currentMonthKey, formatMonth, trailingMonths } from "@/lib/months";
 import { formatCurrency } from "@/lib/format";
 
+// Safe: only allow 6-digit hex colors from our palette
+const safeColor = (color: string | undefined) =>
+  color && /^#[0-9a-f]{6}$/i.test(color) ? color : "#6b7280";
+
 export default function DashboardPage() {
   const { hydrated, transactions, budgets, categories, isEmptyAccount } = useBudget();
   const [month, setMonth] = useState<string>(currentMonthKey());
@@ -60,7 +64,10 @@ export default function DashboardPage() {
     });
   }, [month, budgets, transactions]);
 
-  const monthTx = transactionsInMonth(transactions, month);
+  const monthTx = useMemo(
+    () => transactionsInMonth(transactions, month),
+    [transactions, month],
+  );
   const hasSpending = monthTx.length > 0;
 
   // Loading skeleton — keeps layout stable while async hydration runs.
@@ -189,8 +196,8 @@ export default function DashboardPage() {
       {/* Alerts */}
       {alerts.length > 0 && (
         <div className="space-y-2">
-          {alerts.map((a, i) => (
-            <Alert key={i} level={a.level}>
+          {alerts.map((a) => (
+            <Alert key={`${a.level}:${a.categoryId ?? ""}:${a.message}`} level={a.level}>
               {a.message}
             </Alert>
           ))}
@@ -299,8 +306,8 @@ export default function DashboardPage() {
                       <span
                         className="w-8 h-8 rounded-lg grid place-items-center text-xs font-semibold"
                         style={{
-                          backgroundColor: `${cat?.color}22`,
-                          color: cat?.color,
+                          backgroundColor: `${safeColor(cat?.color)}22`,
+                          color: safeColor(cat?.color),
                         }}
                       >
                         {tx.merchant[0]?.toUpperCase() ?? "?"}

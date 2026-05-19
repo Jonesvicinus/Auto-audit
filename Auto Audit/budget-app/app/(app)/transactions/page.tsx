@@ -39,6 +39,11 @@ export default function TransactionsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [editing, setEditing] = useState<string | null>(null);
 
+  const categoryById = useMemo(
+    () => new Map(categories.map((c) => [c.id, c])),
+    [categories],
+  );
+
   const categoryOptions = useMemo(
     () => [
       { value: "all", label: "All categories" },
@@ -72,14 +77,14 @@ export default function TransactionsPage() {
       else if (sortKey === "merchant") cmp = a.merchant.localeCompare(b.merchant);
       else if (sortKey === "amount") cmp = a.amount - b.amount;
       else if (sortKey === "category") {
-        const ac = categories.find((c) => c.id === a.categoryId)?.name ?? "";
-        const bc = categories.find((c) => c.id === b.categoryId)?.name ?? "";
+        const ac = categoryById.get(a.categoryId)?.name ?? "";
+        const bc = categoryById.get(b.categoryId)?.name ?? "";
         cmp = ac.localeCompare(bc);
       }
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [monthTx, query, categoryFilter, sortKey, sortDir, categories]);
+  }, [monthTx, query, categoryFilter, sortKey, sortDir, categoryById]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -111,7 +116,14 @@ export default function TransactionsPage() {
     setEditing(null);
   }
 
-  if (!hydrated) return null;
+  if (!hydrated) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        <div className="h-8 w-48 rounded-lg bg-gray-100 dark:bg-neutral-800" />
+        <div className="h-64 rounded-2xl bg-gray-100 dark:bg-neutral-800" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -236,7 +248,7 @@ export default function TransactionsPage() {
               </thead>
               <tbody>
                 {rows.map((tx) => {
-                  const cat = categories.find((c) => c.id === tx.categoryId);
+                  const cat = categoryById.get(tx.categoryId);
                   const isEditing = editing === tx.id;
                   return (
                     <React.Fragment key={tx.id}>

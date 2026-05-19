@@ -10,6 +10,11 @@ export interface User {
   createdAt: string; // ISO date
 }
 
+export type CategorySchedule =
+  | { kind: "monthly" }
+  | { kind: "one-time"; month?: MonthKey }
+  | { kind: "selected-months"; months?: number[] };
+
 export interface Category {
   id: string;
   name: string;
@@ -19,6 +24,7 @@ export interface Category {
   // "other" is a protected default bucket for uncategorized spending
   isDefault?: boolean;
   isOther?: boolean;
+  schedule?: CategorySchedule;
 }
 
 export interface Transaction {

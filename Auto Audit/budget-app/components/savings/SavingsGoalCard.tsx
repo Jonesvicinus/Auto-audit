@@ -59,9 +59,11 @@ export function SavingsGoalCard({
             <>
               <button
                 onClick={() => {
+                  const tv = parseFloat(target);
+                  const safeTarget = Number.isFinite(tv) && tv >= 0 ? tv : goal.targetAmount;
                   onEdit({
                     name: name.trim() || goal.name,
-                    targetAmount: parseFloat(target) || 0,
+                    targetAmount: safeTarget,
                     targetDate: targetDate
                       ? new Date(targetDate + "T12:00:00").toISOString()
                       : undefined,
@@ -109,7 +111,7 @@ export function SavingsGoalCard({
           {formatCurrency(goal.savedAmount)}
         </span>
         <span className="text-sm text-gray-500 dark:text-gray-400">
-          of {formatCurrency(editing ? parseFloat(target) || 0 : goal.targetAmount)}
+          of {formatCurrency(editing ? (Number.isFinite(parseFloat(target)) && parseFloat(target) >= 0 ? parseFloat(target) : goal.targetAmount) : goal.targetAmount)}
         </span>
       </div>
       <div className="mt-3">
@@ -171,9 +173,10 @@ export function SavingsGoalCard({
             const raw = window.prompt(
               "Add a custom amount (use a negative number to withdraw):",
             );
-            if (!raw) return;
+            if (raw === null) return;
             const n = parseFloat(raw);
-            if (Number.isFinite(n)) onContribute(n);
+            if (!Number.isFinite(n) || n === 0) return;
+            onContribute(n);
           }}
         >
           Custom

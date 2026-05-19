@@ -98,6 +98,13 @@ describe("buildBudgetRecommendation", () => {
     const foodRec = rec.categoryRecommendations.find((r) => r.category.id === food.id)!;
     const billsRec = rec.categoryRecommendations.find((r) => r.category.id === bills.id)!;
     expect(foodRec.cushionRate).toBeGreaterThan(billsRec.cushionRate);
+    // Verify the actual recommended amounts: average × (1 + cushionRate), rounded.
+    // food: avg=350, cushion=10% → 385 → rounds to $390 (nearest $10)
+    // bills: avg=100, cushion=5% → 105 → rounds to $110 (nearest $10)
+    expect(foodRec.recommended).toBe(roundBudgetAmount(350 * (1 + foodRec.cushionRate)));
+    expect(billsRec.recommended).toBe(roundBudgetAmount(100 * (1 + billsRec.cushionRate)));
+    expect(foodRec.recommended).toBe(390);
+    expect(billsRec.recommended).toBe(110);
   });
 
   it("correctly attributes March 1st transactions to March (no UTC offset bug)", () => {

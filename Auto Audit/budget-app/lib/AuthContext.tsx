@@ -93,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(userFromSupabase(data.session.user as SupabaseUserShape));
           if (typeof window !== "undefined") {
             window.localStorage.removeItem(DEMO_FLAG_KEY);
+            document.cookie = "auto-audit-demo=; path=/; max-age=0; SameSite=Lax";
           }
           setIsDemo(false);
         }
@@ -104,6 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(userFromSupabase(session.user as SupabaseUserShape));
             if (typeof window !== "undefined") {
               window.localStorage.removeItem(DEMO_FLAG_KEY);
+              document.cookie = "auto-audit-demo=; path=/; max-age=0; SameSite=Lax";
             }
             setIsDemo(false);
           } else {
@@ -137,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         window.localStorage.removeItem(`auto-audit:${version}:demo`);
       }
       window.localStorage.setItem(DEMO_FLAG_KEY, "1");
+      document.cookie = "auto-audit-demo=1; path=/; SameSite=Lax";
     }
     setIsDemo(true);
   }, []);
@@ -144,6 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const exitDemoMode = useCallback(() => {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(DEMO_FLAG_KEY);
+      document.cookie = "auto-audit-demo=; path=/; max-age=0; SameSite=Lax";
     }
     setIsDemo(false);
   }, []);
@@ -174,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(userFromSupabase((data.user as SupabaseUserShape) ?? null));
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(DEMO_FLAG_KEY);
+        document.cookie = "auto-audit-demo=; path=/; max-age=0; SameSite=Lax";
       }
       setIsDemo(false);
       return null;
@@ -230,6 +235,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userFromSupabase(supaUser));
         if (typeof window !== "undefined") {
           window.localStorage.removeItem(DEMO_FLAG_KEY);
+          document.cookie = "auto-audit-demo=; path=/; max-age=0; SameSite=Lax";
         }
         setIsDemo(false);
         return null;
@@ -245,6 +251,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const sb = getSupabaseClient();
     if (sb) await sb.auth.signOut();
     setUser(null);
+    if (typeof window !== "undefined") {
+      document.cookie = "auto-audit-demo=; path=/; max-age=0; SameSite=Lax";
+    }
   }, []);
 
   const requestPasswordReset = useCallback(

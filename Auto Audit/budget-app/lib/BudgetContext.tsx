@@ -51,8 +51,8 @@ interface BudgetContextValue extends AppState {
   rememberMerchant: (merchant: string, categoryId: string, remember: boolean) => void;
 
   setAdvancedMode: (v: boolean) => void;
-  resetDemo: () => void;
-  reseedDemoData: () => void;
+  resetDemo: () => Promise<void>;
+  reseedDemoData: () => Promise<void>;
 
   // derived / convenience
   hydrated: boolean;
@@ -64,7 +64,11 @@ interface BudgetContextValue extends AppState {
 const BudgetContext = createContext<BudgetContextValue | null>(null);
 
 function makeId(prefix: string): string {
-  return `${prefix}-${crypto.randomUUID()}`;
+  const uuid =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}`;
+  return `${prefix}-${uuid}`;
 }
 
 /** Maps the auth layer's AuthUser to the domain User type, filling in defaults. */
@@ -104,46 +108,61 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     if (lastModeRef.current === modeKey && adapterRef.current) return;
     lastModeRef.current = modeKey;
 
+    if (mode === "anonymous") {
+      setState(buildDemoState());
+    }
+
     let cancelled = false;
     setHydrated(false);
+    adapterRef.current = null; // prevent stale saves during adapter swap
 
     (async () => {
-      let adapter: StorageAdapter;
-      let nextState: AppState;
+      try {
+        let adapter: StorageAdapter;
+        let nextState: AppState;
 
-      if (mode === "supabase" && user) {
-        const domainUser = authUserToUser(user);
-        adapter = new SupabaseStorageAdapter(domainUser);
-        const loaded = await adapter.load();
-        if (loaded) {
-          nextState = loaded;
+        if (mode === "supabase" && user) {
+          const domainUser = authUserToUser(user);
+          adapter = new SupabaseStorageAdapter(domainUser);
+          const loaded = await adapter.load();
+          if (loaded) {
+            nextState = loaded;
+          } else {
+            nextState = buildEmptyAuthenticatedState(domainUser);
+            await adapter.save(nextState);
+          }
+        } else if (mode === "demo") {
+          adapter = new LocalStorageAdapter("demo");
+          const loaded = await adapter.load();
+          if (loaded) {
+            nextState = loaded;
+          } else {
+            nextState = buildDemoState();
+            await adapter.save(nextState);
+          }
         } else {
-          nextState = buildEmptyAuthenticatedState(domainUser);
-          await adapter.save(nextState);
-        }
-      } else if (mode === "demo") {
-        adapter = new LocalStorageAdapter("demo");
-        const loaded = await adapter.load();
-        if (loaded) {
-          nextState = loaded;
-        } else {
+          // anonymous / loading: use a transient localStorage namespace just so
+          // the components can render. Routes redirect anonymous users away.
+          adapter = new LocalStorageAdapter("anonymous", true); // read-only, never persists
           nextState = buildDemoState();
-          await adapter.save(nextState);
         }
-      } else {
-        // anonymous / loading: use a transient localStorage namespace just so
-        // the components can render. Routes redirect anonymous users away.
-        adapter = new LocalStorageAdapter("anonymous");
-        nextState = buildDemoState();
+
+        // Always make sure the current month has a budget row to edit.
+        nextState.budgets = ensureBudgetForMonth(nextState.budgets, currentMonthKey());
+
+        if (cancelled) return;
+        adapterRef.current = adapter;
+        setState(nextState);
+        setHydrated(true);
+      } catch (err) {
+        if (cancelled) return;
+        console.error("[BudgetContext] hydration failed:", err);
+        toast.danger("Couldn't load your data", "Please refresh the page to try again.");
+        // Reset so the next auth state change triggers a retry.
+        lastModeRef.current = "";
+        // Unblock the UI — it renders with the default demo state already in useState.
+        setHydrated(true);
       }
-
-      // Always make sure the current month has a budget row to edit.
-      nextState.budgets = ensureBudgetForMonth(nextState.budgets, currentMonthKey());
-
-      if (cancelled) return;
-      adapterRef.current = adapter;
-      setState(nextState);
-      setHydrated(true);
     })();
 
     return () => {
@@ -160,8 +179,11 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
 
     const adapter = adapterRef.current;
     const stateSnapshot = state;
+    const saveKey = lastModeRef.current;
 
     saveTimer.current = setTimeout(() => {
+      // Abort if the auth mode changed while this timer was pending.
+      if (lastModeRef.current !== saveKey) return;
       const runSave = async (s: AppState) => {
         try {
           await adapter.save(s);
@@ -216,7 +238,13 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   // ---------------------------------------------------------------------------
   const addTransaction = useCallback((tx: Omit<Transaction, "id">) => {
     const withId: Transaction = { ...tx, id: makeId("tx") };
-    setState((s) => ({ ...s, transactions: [...s.transactions, withId] }));
+    setState((s) => {
+      const categoryExists = s.categories.some((c) => c.id === withId.categoryId);
+      const safeEntry = categoryExists
+        ? withId
+        : { ...withId, categoryId: s.categories.find((c) => c.isOther)?.id ?? s.categories[0]?.id ?? withId.categoryId };
+      return { ...s, transactions: [...s.transactions, safeEntry] };
+    });
     return withId;
   }, []);
 
@@ -297,7 +325,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   const deleteCategory = useCallback((id: string) => {
     setState((s) => {
       const cat = s.categories.find((c) => c.id === id);
-      if (!cat || s.categories.length <= 1) return s;
+      if (!cat || cat.isOther || s.categories.length <= 1) return s;
       const fallback =
         s.categories.find((c) => c.id !== id && c.isOther) ??
         s.categories.find((c) => c.id !== id);
@@ -399,10 +427,11 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     setState(fresh);
     try {
       await adapterRef.current?.save(fresh);
-    } catch {
-      // save errors already surface via the debounced save effect
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      toast.danger("Reset failed", `Data wasn't saved to the server: ${msg}`);
     }
-  }, [mode, user]);
+  }, [mode, user, toast]);
 
   // Reseed demo data — useful from the demo banner "load fresh sample".
   const reseedDemoData = useCallback(async () => {
@@ -411,10 +440,11 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     setState(fresh);
     try {
       await adapterRef.current?.save(fresh);
-    } catch {
-      // save errors already surface via the debounced save effect
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      toast.danger("Reseed failed", `Demo data wasn't saved: ${msg}`);
     }
-  }, [mode]);
+  }, [mode, toast]);
 
   const value = useMemo<BudgetContextValue>(
     () => ({
