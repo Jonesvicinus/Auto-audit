@@ -151,31 +151,67 @@ export async function parseCsvFile(file: File): Promise<{
 // Date / amount normalization
 // ---------------------------------------------------------------------------
 
-// Try a handful of common formats. Returns "" if it can't make sense of it.
+// Month name lookup for "Mar 15, 2025" and "15 Mar 2025" formats.
+const MONTH_NAME_MAP: Record<string, string> = {
+  jan: "01", january: "01",
+  feb: "02", february: "02",
+  mar: "03", march: "03",
+  apr: "04", april: "04",
+  may: "05",
+  jun: "06", june: "06",
+  jul: "07", july: "07",
+  aug: "08", august: "08",
+  sep: "09", september: "09",
+  oct: "10", october: "10",
+  nov: "11", november: "11",
+  dec: "12", december: "12",
+};
+
+// Try a handful of common formats. Returns "" if unrecognised.
+// Deliberately avoids new Date() to prevent UTC offset bugs on bare date strings.
 export function normalizeDate(input: string): string {
   if (!input) return "";
   const s = input.trim();
-  // ISO already (YYYY-MM-DD)
+
+  // ISO already: YYYY-MM-DD (handles YYYY-M-D too)
   const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
   if (iso) {
     const [, y, m, d] = iso;
     return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
-  // M/D/YYYY or MM/DD/YYYY (US)
-  const us = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/.exec(s);
+
+  // US: M/D/YYYY or MM/DD/YYYY or MM/DD/YY
+  const us = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/.exec(s);
   if (us) {
     let [, m, d, y] = us;
     if (y.length === 2) y = `20${y}`;
     return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
-  // Last resort: let Date parse it
-  const t = new Date(s);
-  if (!Number.isNaN(t.getTime())) {
-    const y = t.getFullYear();
-    const m = String(t.getMonth() + 1).padStart(2, "0");
-    const d = String(t.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
+
+  // European: D.M.YYYY when day > 12 (unambiguous — day can't be a month)
+  const eu = /^(\d{1,2})[./](\d{1,2})[./](\d{2,4})$/.exec(s);
+  if (eu) {
+    const [, d, m, yRaw] = eu;
+    if (parseInt(d, 10) > 12 && parseInt(m, 10) >= 1 && parseInt(m, 10) <= 12) {
+      const y = yRaw.length === 2 ? `20${yRaw}` : yRaw;
+      return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    }
   }
+
+  // "Mar 15, 2025" or "March 15 2025"
+  const mdy = /^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/.exec(s);
+  if (mdy) {
+    const mon = MONTH_NAME_MAP[mdy[1].toLowerCase()];
+    if (mon) return `${mdy[3]}-${mon}-${mdy[2].padStart(2, "0")}`;
+  }
+
+  // "15 Mar 2025" or "15 March 2025"
+  const dmy = /^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/.exec(s);
+  if (dmy) {
+    const mon = MONTH_NAME_MAP[dmy[2].toLowerCase()];
+    if (mon) return `${dmy[3]}-${mon}-${dmy[1].padStart(2, "0")}`;
+  }
+
   return "";
 }
 
@@ -189,7 +225,7 @@ export function normalizeAmount(input: string): number | null {
     negative = true;
     s = s.slice(1, -1);
   }
-  s = s.replace(/[\$£€¥,]/g, "").trim();
+  s = s.replace(/[$£€¥₹₩₽₪₺₴₦₫₱฿]/g, "").replace(/,/g, "").trim();
   if (s.startsWith("-")) {
     negative = true;
     s = s.slice(1);
