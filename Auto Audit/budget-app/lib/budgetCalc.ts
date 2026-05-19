@@ -5,6 +5,7 @@ import type {
   Transaction,
 } from "@/types";
 import { monthKeyOf, addMonths } from "./months";
+import { activeCategoriesForMonth } from "./categorySchedule";
 
 export interface CategorySpendRow {
   category: Category;
@@ -31,7 +32,7 @@ export function transactionsInMonth(
   transactions: Transaction[],
   month: MonthKey,
 ): Transaction[] {
-  return transactions.filter((t) => monthKeyOf(new Date(t.date)) === month);
+  return transactions.filter((t) => t.date.slice(0, 7) === month);
 }
 
 export function totalSpentInMonth(
@@ -99,7 +100,19 @@ export function summarizeMonth(
     spentTotal += t.amount;
   }
 
-  const rows: CategorySpendRow[] = categories.map((cat) => {
+  const visibleCategoryIds = new Set([
+    ...Object.keys(spentByCategory),
+    ...Object.keys(budget?.categories ?? {}).filter(
+      (categoryId) => (budget?.categories?.[categoryId] ?? 0) > 0,
+    ),
+  ]);
+  const visibleCategories = activeCategoriesForMonth(
+    categories,
+    month,
+    Array.from(visibleCategoryIds),
+  );
+
+  const rows: CategorySpendRow[] = visibleCategories.map((cat) => {
     const catBudget = budget?.categories?.[cat.id] ?? 0;
     const catSpent = spentByCategory[cat.id] ?? 0;
     const remaining = catBudget - catSpent;

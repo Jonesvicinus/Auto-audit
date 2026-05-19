@@ -41,7 +41,7 @@ export function trailingMonths(key: MonthKey, count: number): MonthKey[] {
   return keys;
 }
 
-export function isSameMonth(iso: string, key: MonthKey) {
-  const d = new Date(iso);
-  return monthKeyOf(d) === key;
+// Slice "YYYY-MM" directly — avoids new Date() UTC offset causing wrong month.
+export function isSameMonth(iso: string, key: MonthKey): boolean {
+  return iso.slice(0, 7) === key;
 }
