@@ -154,19 +154,23 @@ export function categoryBudgetsExceedTotal(budget: MonthlyBudget): boolean {
   return sumCategoryBudgets(budget.categories) > budget.total + 0.001;
 }
 
-// Push any "unused" portion of the total budget into the "Other" category.
-// This keeps category totals === total budget, preventing unallocated slack.
+// Push any unallocated portion of the total into Other (clamped at 0).
+// When non-Other categories already exceed total, Other is zeroed out.
 export function allocateSlackToOther(
   budget: MonthlyBudget,
   otherCategoryId: string,
 ): MonthlyBudget {
-  const sum = sumCategoryBudgets(budget.categories);
-  if (Math.abs(sum - budget.total) < 0.01) return budget;
-  const slack = Math.max(0, budget.total - sum);
-  const nextCats = { ...budget.categories };
-  const current = nextCats[otherCategoryId] ?? 0;
-  nextCats[otherCategoryId] = Math.max(0, current + slack);
-  return { ...budget, categories: nextCats };
+  const otherCurrent = budget.categories[otherCategoryId] ?? 0;
+  // Compute sum excluding Other so we can set Other = total - that sum.
+  const sumWithoutOther = sumCategoryBudgets(budget.categories) - otherCurrent;
+  const newOther = Math.max(0, budget.total - sumWithoutOther);
+
+  if (Math.abs(newOther - otherCurrent) < 0.01) return budget;
+
+  return {
+    ...budget,
+    categories: { ...budget.categories, [otherCategoryId]: newOther },
+  };
 }
 
 // -----------------------------------------------------------------------------

@@ -83,3 +83,35 @@ describe("categoryBudgetsExceedTotal", () => {
     expect(categoryBudgetsExceedTotal(makeBudget("2025-03", 100, { a: 80, b: 20 }))).toBe(false);
   });
 });
+
+describe("allocateSlackToOther", () => {
+  it("pushes unallocated slack into Other", () => {
+    const budget = makeBudget("2025-03", 100, { "cat-a": 80, "cat-other": 0 });
+    const result = allocateSlackToOther(budget, "cat-other");
+    expect(result.categories["cat-other"]).toBe(20);
+  });
+
+  it("zeros Other when non-Other categories already exceed total", () => {
+    const budget = makeBudget("2025-03", 100, { "cat-a": 80, "cat-b": 40, "cat-other": 30 });
+    const result = allocateSlackToOther(budget, "cat-other");
+    expect(result.categories["cat-other"]).toBe(0);
+  });
+
+  it("reduces Other when previously over-allocated", () => {
+    const budget = makeBudget("2025-03", 100, { "cat-a": 80, "cat-other": 50 });
+    // non-Other sum = 80, slack = 20, Other should become 20 (reduced from 50)
+    const result = allocateSlackToOther(budget, "cat-other");
+    expect(result.categories["cat-other"]).toBe(20);
+  });
+
+  it("returns the same object reference when already balanced", () => {
+    const budget = makeBudget("2025-03", 100, { "cat-a": 80, "cat-other": 20 });
+    expect(allocateSlackToOther(budget, "cat-other")).toBe(budget);
+  });
+
+  it("creates Other key if not present and slack exists", () => {
+    const budget = makeBudget("2025-03", 100, { "cat-a": 60 });
+    const result = allocateSlackToOther(budget, "cat-other");
+    expect(result.categories["cat-other"]).toBe(40);
+  });
+});
