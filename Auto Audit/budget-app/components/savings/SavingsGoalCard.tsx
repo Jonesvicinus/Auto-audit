@@ -1,6 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
+
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 import { Pencil, Trash2, Check, X, Plus, Minus } from "lucide-react";
 import type { SavingsGoal } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -61,11 +66,14 @@ export function SavingsGoalCard({
                 onClick={() => {
                   const tv = parseFloat(target);
                   const safeTarget = Number.isFinite(tv) && tv >= 0 ? tv : goal.targetAmount;
+                  // Reject past dates even if browser constraint was bypassed
+                  const safeDate =
+                    targetDate && targetDate >= todayIso() ? targetDate : undefined;
                   onEdit({
                     name: name.trim() || goal.name,
                     targetAmount: safeTarget,
-                    targetDate: targetDate
-                      ? new Date(targetDate + "T12:00:00").toISOString()
+                    targetDate: safeDate
+                      ? new Date(safeDate + "T12:00:00").toISOString()
                       : undefined,
                   });
                   setEditing(false);
@@ -140,6 +148,7 @@ export function SavingsGoalCard({
             </label>
             <input
               type="date"
+              min={todayIso()}
               value={targetDate}
               onChange={(e) => setTargetDate(e.target.value)}
               className="w-full px-2 py-1.5 text-sm bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"

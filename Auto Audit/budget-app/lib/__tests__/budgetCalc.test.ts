@@ -6,6 +6,8 @@ import {
   sumCategoryBudgets,
   getBudgetForMonth,
   categoryBudgetsExceedTotal,
+  round2,
+  pruneBudgetCategoryKeys,
 } from "../budgetCalc";
 import type { Transaction, MonthlyBudget } from "@/types";
 
@@ -113,5 +115,57 @@ describe("allocateSlackToOther", () => {
     const budget = makeBudget("2025-03", 100, { "cat-a": 60 });
     const result = allocateSlackToOther(budget, "cat-other");
     expect(result.categories["cat-other"]).toBe(40);
+  });
+});
+
+describe("round2", () => {
+  it("rounds down at the third decimal", () => {
+    expect(round2(1.234)).toBe(1.23);
+  });
+  it("rounds up at the third decimal", () => {
+    expect(round2(1.235)).toBe(1.24);
+  });
+  it("handles the classic IEEE-754 trap: 1.005 → 1.01", () => {
+    expect(round2(1.005)).toBe(1.01);
+  });
+  it("returns whole numbers unchanged", () => {
+    expect(round2(5)).toBe(5);
+  });
+  it("handles zero", () => {
+    expect(round2(0)).toBe(0);
+  });
+  it("handles negative values", () => {
+    expect(round2(-1.234)).toBe(-1.23);
+  });
+});
+
+describe("pruneBudgetCategoryKeys", () => {
+  it("removes keys for deleted categories", () => {
+    const budgets = [makeBudget("2025-03", 100, { "cat-a": 60, "cat-deleted": 40 })];
+    const result = pruneBudgetCategoryKeys(budgets, new Set(["cat-a"]));
+    expect(result[0].categories).toEqual({ "cat-a": 60 });
+  });
+
+  it("returns the same object reference when nothing needs pruning", () => {
+    const budget = makeBudget("2025-03", 100, { "cat-a": 80, "cat-b": 20 });
+    const result = pruneBudgetCategoryKeys([budget], new Set(["cat-a", "cat-b"]));
+    expect(result[0]).toBe(budget);
+  });
+
+  it("handles an empty category set (prunes everything)", () => {
+    const budgets = [makeBudget("2025-03", 100, { "cat-a": 100 })];
+    const result = pruneBudgetCategoryKeys(budgets, new Set([]));
+    expect(result[0].categories).toEqual({});
+  });
+
+  it("prunes independently across multiple budget months", () => {
+    const budgets = [
+      makeBudget("2025-02", 100, { "cat-a": 60, "cat-gone": 40 }),
+      makeBudget("2025-03", 100, { "cat-a": 100 }),
+    ];
+    const result = pruneBudgetCategoryKeys(budgets, new Set(["cat-a"]));
+    expect(result[0].categories).toEqual({ "cat-a": 60 });
+    expect(result[1].categories).toEqual({ "cat-a": 100 });
+    expect(result[1]).toBe(budgets[1]);
   });
 });

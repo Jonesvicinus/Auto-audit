@@ -176,6 +176,32 @@ export function allocateSlackToOther(
 // -----------------------------------------------------------------------------
 // Prior-month comparison for the "underspent/overspent last month" banner
 // -----------------------------------------------------------------------------
+// Consistent 2-decimal rounding. Uses Number.EPSILON to handle IEEE-754 cases
+// like round2(1.005) correctly returning 1.01 instead of 1.00.
+// -----------------------------------------------------------------------------
+export function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+// -----------------------------------------------------------------------------
+// Prune per-category budget allocations for category IDs that no longer exist.
+// Returns the same object reference for months where nothing needs pruning.
+// Call after hydration or after deleting a category.
+// -----------------------------------------------------------------------------
+export function pruneBudgetCategoryKeys(
+  budgets: MonthlyBudget[],
+  categoryIds: Set<string>,
+): MonthlyBudget[] {
+  return budgets.map((b) => {
+    const toRemove = Object.keys(b.categories).filter((k) => !categoryIds.has(k));
+    if (toRemove.length === 0) return b;
+    const cats = { ...b.categories };
+    for (const k of toRemove) delete cats[k];
+    return { ...b, categories: cats };
+  });
+}
+
+// -----------------------------------------------------------------------------
 export function compareToPriorMonth(
   month: MonthKey,
   budgets: MonthlyBudget[],

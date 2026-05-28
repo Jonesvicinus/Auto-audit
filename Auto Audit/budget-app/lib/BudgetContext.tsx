@@ -26,7 +26,7 @@ import {
 } from "./storage";
 import { upsertMemory } from "./merchantMemory";
 import { merchantFamilyKey } from "./fuzzyMatch";
-import { allocateSlackToOther, ensureBudgetForMonth } from "./budgetCalc";
+import { allocateSlackToOther, ensureBudgetForMonth, pruneBudgetCategoryKeys } from "./budgetCalc";
 import { currentMonthKey } from "./months";
 import { useAuth } from "./AuthContext";
 import { useToast } from "@/components/ui/Toast";
@@ -38,7 +38,7 @@ interface BudgetContextValue extends AppState {
   deleteTransaction: (id: string) => void;
   clearTransactionsForMonth: (month: string) => void;
 
-  addCategory: (cat: Omit<Category, "id">) => Category;
+  addCategory: (cat: Omit<Category, "id">) => Category | null;
   updateCategory: (id: string, patch: Partial<Omit<Category, "id">>) => void;
   deleteCategory: (id: string) => void;
 
@@ -148,6 +148,9 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
 
         // Always make sure the current month has a budget row to edit.
         nextState.budgets = ensureBudgetForMonth(nextState.budgets, currentMonthKey());
+        // Remove stale category keys carried forward from deleted categories.
+        const activeCategoryIds = new Set(nextState.categories.map((c) => c.id));
+        nextState.budgets = pruneBudgetCategoryKeys(nextState.budgets, activeCategoryIds);
 
         if (cancelled) return;
         adapterRef.current = adapter;
@@ -305,10 +308,20 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
   // ---------------------------------------------------------------------------
   // Categories
   // ---------------------------------------------------------------------------
-  const addCategory = useCallback((cat: Omit<Category, "id">) => {
-    const withId: Category = { ...cat, id: makeId("cat") };
-    setState((s) => ({ ...s, categories: [...s.categories, withId] }));
-    return withId;
+  const addCategory = useCallback((cat: Omit<Category, "id">): Category | null => {
+    const trimmedName = cat.name.trim();
+    if (!trimmedName) return null;
+    const withId: Category = { ...cat, name: trimmedName, id: makeId("cat") };
+    let duplicate = false;
+    setState((s) => {
+      const lower = trimmedName.toLowerCase();
+      if (s.categories.some((c) => c.name.trim().toLowerCase() === lower)) {
+        duplicate = true;
+        return s;
+      }
+      return { ...s, categories: [...s.categories, withId] };
+    });
+    return duplicate ? null : withId;
   }, []);
 
   const updateCategory = useCallback(

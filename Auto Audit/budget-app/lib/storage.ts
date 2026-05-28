@@ -29,6 +29,20 @@ export interface StorageAdapter {
 export const CURRENT_STORAGE_VERSION = "v1.4";
 export const LEGACY_STORAGE_VERSIONS = ["v1.1", "v1.2", "v1.3"] as const;
 
+function isValidAppState(obj: unknown): obj is AppState {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
+  const s = obj as Record<string, unknown>;
+  return (
+    typeof s.user === "object" &&
+    s.user !== null &&
+    Array.isArray(s.categories) &&
+    Array.isArray(s.transactions) &&
+    Array.isArray(s.budgets) &&
+    Array.isArray(s.savingsGoals) &&
+    Array.isArray(s.merchantMemory)
+  );
+}
+
 export class LocalStorageAdapter implements StorageAdapter {
   private readonly namespace: string;
   private readonly readOnly: boolean;
@@ -50,7 +64,10 @@ export class LocalStorageAdapter implements StorageAdapter {
     if (typeof window === "undefined") return null;
     try {
       const raw = window.localStorage.getItem(this.currentKey);
-      if (raw) return JSON.parse(raw) as AppState;
+      if (raw) {
+        const parsed: unknown = JSON.parse(raw);
+        if (isValidAppState(parsed)) return parsed;
+      }
 
       // Migrate from legacy versions — newest first so we get the freshest data
       for (const version of [...LEGACY_STORAGE_VERSIONS].reverse()) {
@@ -58,7 +75,8 @@ export class LocalStorageAdapter implements StorageAdapter {
         if (legacyRaw) {
           window.localStorage.setItem(this.currentKey, legacyRaw);
           window.localStorage.removeItem(this.legacyKey(version));
-          return JSON.parse(legacyRaw) as AppState;
+          const parsed: unknown = JSON.parse(legacyRaw);
+          if (isValidAppState(parsed)) return parsed;
         }
       }
       return null;

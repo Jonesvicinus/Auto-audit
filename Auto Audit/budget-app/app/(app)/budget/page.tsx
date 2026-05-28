@@ -158,7 +158,11 @@ export default function BudgetSettingsPage() {
     const name = newCatName.trim();
     if (!name) return;
     const color = nextCategoryColor(categories);
-    addCategory({ name, color });
+    const created = addCategory({ name, color });
+    if (!created) {
+      toast.danger("Duplicate name", `A category named "${name}" already exists.`);
+      return;
+    }
     setNewCatName("");
     toast.success("Category added", name);
   }

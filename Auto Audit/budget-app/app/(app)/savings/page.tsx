@@ -33,10 +33,20 @@ export default function SavingsPage() {
   const totalSaved = savingsGoals.reduce((s, g) => s + g.savedAmount, 0);
   const totalTarget = savingsGoals.reduce((s, g) => s + g.targetAmount, 0);
 
+  function todayIso(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
   function handleCreate() {
     const tv = parseFloat(target);
     const safeTarget = Number.isFinite(tv) && tv > 0 ? tv : 0;
     if (!name.trim() || safeTarget === 0) return;
+    // Validate target date is not in the past (guards against bypassed browser constraint)
+    if (targetDate && targetDate < todayIso()) {
+      toast.danger("Invalid date", "Target date must be today or in the future.");
+      return;
+    }
     addSavingsGoal({
       name: name.trim(),
       type,
@@ -134,6 +144,7 @@ export default function SavingsPage() {
               <Input
                 label="Target date (optional)"
                 type="date"
+                min={todayIso()}
                 value={targetDate}
                 onChange={(e) => setTargetDate(e.target.value)}
               />

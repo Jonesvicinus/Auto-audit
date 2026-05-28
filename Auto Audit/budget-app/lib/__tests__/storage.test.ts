@@ -57,4 +57,52 @@ describe("LocalStorageAdapter", () => {
     expect(await adapter.load()).toBeNull();
     expect(localStorage.getItem("auto-audit:v1.1:test")).toBeNull();
   });
+
+  // Schema guard tests
+  it("returns null for corrupted (non-parseable) JSON", async () => {
+    localStorage.setItem(`auto-audit:${CURRENT_STORAGE_VERSION}:test`, "not-json{{{");
+    expect(await new LocalStorageAdapter("test").load()).toBeNull();
+  });
+
+  it("returns null when stored value is an array, not an object", async () => {
+    localStorage.setItem(`auto-audit:${CURRENT_STORAGE_VERSION}:test`, JSON.stringify([]));
+    expect(await new LocalStorageAdapter("test").load()).toBeNull();
+  });
+
+  it("returns null when required array fields are missing", async () => {
+    const partial = { user: { id: "u1", name: "T", email: "t@t.com", createdAt: "2025-01-01T00:00:00Z" } };
+    localStorage.setItem(`auto-audit:${CURRENT_STORAGE_VERSION}:test`, JSON.stringify(partial));
+    expect(await new LocalStorageAdapter("test").load()).toBeNull();
+  });
+
+  it("returns null when user field is missing", async () => {
+    const noUser = { categories: [], transactions: [], budgets: [], savingsGoals: [], merchantMemory: [] };
+    localStorage.setItem(`auto-audit:${CURRENT_STORAGE_VERSION}:test`, JSON.stringify(noUser));
+    expect(await new LocalStorageAdapter("test").load()).toBeNull();
+  });
+
+  // Legacy migration tests
+  it("migrates legacy v1.2 data to current key on load", async () => {
+    localStorage.setItem("auto-audit:v1.2:test", JSON.stringify(makeState()));
+    const loaded = await new LocalStorageAdapter("test").load();
+    expect(loaded?.user.id).toBe("u1");
+    expect(localStorage.getItem("auto-audit:v1.2:test")).toBeNull();
+    expect(localStorage.getItem(`auto-audit:${CURRENT_STORAGE_VERSION}:test`)).not.toBeNull();
+  });
+
+  it("migrates legacy v1.3 data to current key on load", async () => {
+    localStorage.setItem("auto-audit:v1.3:test", JSON.stringify(makeState()));
+    const loaded = await new LocalStorageAdapter("test").load();
+    expect(loaded?.user.id).toBe("u1");
+    expect(localStorage.getItem("auto-audit:v1.3:test")).toBeNull();
+  });
+
+  it("prefers v1.3 over v1.2 when both exist (newest-first migration)", async () => {
+    const stateA = makeState();
+    const stateB = { ...makeState(), user: { ...makeState().user, id: "u-newer" } };
+    localStorage.setItem("auto-audit:v1.2:test", JSON.stringify(stateA));
+    localStorage.setItem("auto-audit:v1.3:test", JSON.stringify(stateB));
+    const loaded = await new LocalStorageAdapter("test").load();
+    expect(loaded?.user.id).toBe("u-newer");
+  });
 });
