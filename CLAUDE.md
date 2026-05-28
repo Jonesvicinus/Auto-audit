@@ -6,7 +6,8 @@ This file gives Claude project-specific context for Auto Audit.
 
 Read these first, in order:
 
-1. `/Users/jonesvicinus/Code/AI-Brain/wiki/projects/auto-audit.md`
+1. `/Users/jonesvicinus/Code/AI-Brain/wiki/projects/auto-audit/auto-audit.md`
+   - For page-specific work, also read the matching note in `/Users/jonesvicinus/Code/AI-Brain/wiki/projects/auto-audit/`.
 2. `/Users/jonesvicinus/Code/Auto-audit/Auto Audit/budget-app/DEVELOPER.md`
 3. `/Users/jonesvicinus/Code/Auto-audit/Auto Audit/budget-app/README.md` only if quick setup context is needed
 
@@ -51,16 +52,16 @@ npx tsc --noEmit
 
 After meaningful Auto Audit work, update:
 
-- `/Users/jonesvicinus/Code/AI-Brain/wiki/projects/auto-audit.md`
+- `/Users/jonesvicinus/Code/AI-Brain/wiki/projects/auto-audit/auto-audit.md`
 - `/Users/jonesvicinus/Code/AI-Brain/log.md`
 
-Update the project page when current status, next tasks, implementation decisions, or open questions change. Always update `last_updated` frontmatter on any Brain page modified.
+Update the project overview and any affected page-specific note when current status, next tasks, implementation decisions, or open questions change. Always update `last_updated` frontmatter on any Brain page modified.
 
 Append a brief log entry in this format:
 
 ```markdown
 ## [YYYY-MM-DD] project update | Auto Audit
-Updated: wiki/projects/auto-audit.md.
+Updated: wiki/projects/auto-audit/auto-audit.md and any affected page notes.
 Summary: <what changed, what remains next>.
 ```
 
