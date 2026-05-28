@@ -20,6 +20,10 @@ export function Input({
   ...props
 }: InputProps) {
   const inputId = id ?? props.name;
+  const hintId = inputId ? `${inputId}-hint` : undefined;
+  const errorId = inputId ? `${inputId}-error` : undefined;
+  const describedBy = error ? errorId : hint ? hintId : undefined;
+
   return (
     <div className="w-full">
       {label && (
@@ -32,12 +36,17 @@ export function Input({
       )}
       <div className={`relative ${leftAdornment ? "flex items-stretch" : ""}`}>
         {leftAdornment && (
-          <span className="inline-flex items-center px-3 border border-r-0 border-gray-300 dark:border-neutral-700 rounded-l-lg bg-gray-50 dark:bg-neutral-800 text-gray-500 dark:text-gray-400 text-sm">
+          <span
+            aria-hidden="true"
+            className="inline-flex items-center px-3 border border-r-0 border-gray-300 dark:border-neutral-700 rounded-l-lg bg-gray-50 dark:bg-neutral-800 text-gray-500 dark:text-gray-400 text-sm"
+          >
             {leftAdornment}
           </span>
         )}
         <input
           id={inputId}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
           {...props}
           className={`${baseInputClasses} border-gray-300 dark:border-neutral-700 ${
             leftAdornment ? "rounded-r-lg" : "rounded-lg"
@@ -45,9 +54,15 @@ export function Input({
         />
       </div>
       {hint && !error && (
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{hint}</p>
+        <p id={hintId} className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          {hint}
+        </p>
       )}
-      {error && <p className="text-xs text-danger-600 mt-1">{error}</p>}
+      {error && (
+        <p id={errorId} role="alert" className="text-xs text-danger-600 mt-1">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

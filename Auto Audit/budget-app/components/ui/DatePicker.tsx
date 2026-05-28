@@ -48,21 +48,47 @@ export function DatePicker({ label, name, value, max, onChange }: DatePickerProp
   const [viewDate, setViewDate] = useState(
     () => new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
   );
+  const [focusedDate, setFocusedDate] = useState<Date | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const focusedButtonRef = useRef<HTMLButtonElement | null>(null);
   const inputId = name ? `${name}-date-picker` : undefined;
+  const popupId = name ? `${name}-date-picker-dialog` : undefined;
 
+  // Sync view to selected date when opening; reset focused date on close.
   useEffect(() => {
-    if (!open) return;
-    setViewDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
-  }, [open, selectedDate]);
+    if (open) {
+      setViewDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+      setFocusedDate(selectedDate);
+    } else {
+      setFocusedDate(null);
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // When focusedDate crosses into a different month, update the view.
+  useEffect(() => {
+    if (!focusedDate || !open) return;
+    if (
+      focusedDate.getMonth() !== viewDate.getMonth() ||
+      focusedDate.getFullYear() !== viewDate.getFullYear()
+    ) {
+      setViewDate(new Date(focusedDate.getFullYear(), focusedDate.getMonth(), 1));
+    }
+  }, [focusedDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Move DOM focus to the currently keyboard-focused day button.
+  useEffect(() => {
+    if (focusedDate && open) {
+      focusedButtonRef.current?.focus();
+    }
+  }, [focusedDate, open]);
+
+  // Close on outside click.
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false);
       }
     }
-
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
@@ -83,6 +109,15 @@ export function DatePicker({ label, name, value, max, onChange }: DatePickerProp
     setViewDate((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
   }
 
+  function moveFocus(days: number) {
+    setFocusedDate((current) => {
+      const base = current ?? selectedDate;
+      return new Date(base.getFullYear(), base.getMonth(), base.getDate() + days);
+    });
+  }
+
+  const monthLabel = viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
   return (
     <div className="relative w-full" ref={rootRef}>
       {label && (
@@ -96,7 +131,16 @@ export function DatePicker({ label, name, value, max, onChange }: DatePickerProp
       <button
         id={inputId}
         type="button"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-controls={popupId}
         onClick={() => setOpen((next) => !next)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && open) {
+            e.preventDefault();
+            setOpen(false);
+          }
+        }}
         className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 flex items-center justify-between gap-3"
       >
         <span className="tabular-nums">{formatDisplayDate(value)}</span>
@@ -104,13 +148,26 @@ export function DatePicker({ label, name, value, max, onChange }: DatePickerProp
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-[21rem] rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 shadow-pop">
+        <div
+          id={popupId}
+          role="dialog"
+          aria-label={`Choose date — ${monthLabel}`}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") { e.preventDefault(); setOpen(false); }
+            if (e.key === "ArrowLeft") { e.preventDefault(); moveFocus(-1); }
+            if (e.key === "ArrowRight") { e.preventDefault(); moveFocus(1); }
+            if (e.key === "ArrowUp") { e.preventDefault(); moveFocus(-7); }
+            if (e.key === "ArrowDown") { e.preventDefault(); moveFocus(7); }
+          }}
+          className="absolute left-0 top-full z-50 mt-2 w-[21rem] rounded-xl border border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 shadow-pop"
+        >
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-              {viewDate.toLocaleDateString("en-US", {
-                month: "long",
-                year: "numeric",
-              })}
+            <p
+              aria-live="polite"
+              aria-atomic="true"
+              className="text-sm font-semibold text-gray-900 dark:text-gray-100"
+            >
+              {monthLabel}
             </p>
             <div className="flex items-center gap-1">
               <button
@@ -134,7 +191,11 @@ export function DatePicker({ label, name, value, max, onChange }: DatePickerProp
 
           <div className="mt-4 grid grid-cols-7 gap-1 text-center">
             {WEEKDAYS.map((day, index) => (
-              <div key={`${day}-${index}`} className="py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+              <div
+                key={`${day}-${index}`}
+                aria-hidden="true"
+                className="py-1 text-xs font-medium text-gray-500 dark:text-gray-400"
+              >
                 {day}
               </div>
             ))}
@@ -143,15 +204,32 @@ export function DatePicker({ label, name, value, max, onChange }: DatePickerProp
               const outsideMonth = date.getMonth() !== viewDate.getMonth();
               const disabled = Boolean(maxDate && date > maxDate);
               const selected = isSameDay(date, selectedDate);
+              const isFocused = Boolean(focusedDate && isSameDay(date, focusedDate));
 
               return (
                 <button
                   key={iso}
                   type="button"
                   disabled={disabled}
+                  tabIndex={isFocused ? 0 : -1}
+                  ref={isFocused ? focusedButtonRef : undefined}
+                  aria-selected={selected}
+                  aria-label={date.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
                   onClick={() => {
                     onChange(iso);
                     setOpen(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if ((e.key === "Enter" || e.key === " ") && !disabled) {
+                      e.preventDefault();
+                      onChange(iso);
+                      setOpen(false);
+                    }
                   }}
                   className={`grid h-9 place-items-center rounded-lg text-sm tabular-nums ${
                     selected
