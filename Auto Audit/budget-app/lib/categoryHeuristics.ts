@@ -25,6 +25,7 @@ const HEURISTICS: Heuristic[] = [
   {
     bucket: "Food",
     patterns: [
+      /\buber\s*eats\b/i,
       /\bstarbucks\b/i,
       /\bdunkin'?\b/i,
       /\bchick[\s-]*fil[\s-]*a\b/i,
