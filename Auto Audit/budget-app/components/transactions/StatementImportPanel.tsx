@@ -75,6 +75,7 @@ export function StatementImportPanel() {
   const [rawRows, setRawRows] = useState<Record<string, string>[]>([]);
   const [mapping, setMapping] = useState<Partial<Record<CsvField, string>>>({});
   const [creditCol, setCreditCol] = useState<string | undefined>();
+  const [amountSign, setAmountSign] = useState<"auto" | "positive" | "negative">("auto");
 
   // Shared review state
   const [reviewRows, setReviewRows] = useState<ReviewRow[]>([]);
@@ -121,6 +122,7 @@ export function StatementImportPanel() {
     setRawRows([]);
     setMapping({});
     setCreditCol(undefined);
+    setAmountSign("auto");
     setReviewRows([]);
     setParseErrors([]);
     setTopLevelError(null);
@@ -164,6 +166,7 @@ export function StatementImportPanel() {
       rows: Record<string, string>[],
       currentMapping: Partial<Record<CsvField, string>>,
       currentCreditCol: string | undefined,
+      currentAmountSign: "auto" | "positive" | "negative",
     ) => {
       const required: CsvField[] = ["date", "merchant", "amount"];
       const missing = required.filter((f) => !currentMapping[f]);
@@ -177,7 +180,7 @@ export function StatementImportPanel() {
       const { rows: parsed, errors } = normalizeRows(rows, {
         mapping: currentMapping,
         creditCol: currentCreditCol,
-        amountSignForExpense: "auto",
+        amountSignForExpense: currentAmountSign,
       });
       setParseErrors(errors);
 
@@ -188,7 +191,7 @@ export function StatementImportPanel() {
       }
       buildReviewFromRows(parsed);
     },
-    [buildReviewFromRows],
+    [buildReviewFromRows, amountSign],
   );
 
   // ---------------------------------------------------------------------------
@@ -231,7 +234,7 @@ export function StatementImportPanel() {
           if (missing.length > 0) {
             setStage("mapping");
           } else {
-            buildCsvReview(rows, detected.mapping, detected.creditCol);
+            buildCsvReview(rows, detected.mapping, detected.creditCol, amountSign);
           }
         } else {
           // PDF
@@ -247,8 +250,6 @@ export function StatementImportPanel() {
           buildReviewFromRows(result.rows);
         }
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error("[StatementImportPanel] parse failed:", err);
         setTopLevelError(
           err instanceof Error ? err.message : "Couldn't read that file.",
         );
@@ -265,7 +266,7 @@ export function StatementImportPanel() {
     setMapping((m) => ({ ...m, [field]: value || undefined }));
   };
   const handleApplyMapping = () => {
-    buildCsvReview(rawRows, mapping, creditCol);
+    buildCsvReview(rawRows, mapping, creditCol, amountSign);
   };
 
   // ---------------------------------------------------------------------------
@@ -498,6 +499,17 @@ export function StatementImportPanel() {
               options={headerOptions}
               value={creditCol ?? ""}
               onChange={(e) => setCreditCol(e.target.value || undefined)}
+            />
+            <Select
+              label="Amount sign convention"
+              hint="How does your bank represent expenses in the amount column?"
+              options={[
+                { value: "auto", label: "Auto-detect" },
+                { value: "positive", label: "Expenses are positive" },
+                { value: "negative", label: "Expenses are negative" },
+              ]}
+              value={amountSign}
+              onChange={(e) => setAmountSign(e.target.value as "auto" | "positive" | "negative")}
             />
           </div>
           <div className="flex justify-end gap-2">

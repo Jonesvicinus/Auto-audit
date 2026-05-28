@@ -11,8 +11,10 @@ import {
   PiggyBank,
   Printer,
   Wallet,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
+import { APP_VERSION } from "@/lib/version";
 
 type Item = { href: string; label: string; icon: React.ReactNode };
 
@@ -24,6 +26,7 @@ const items: Item[] = [
   { href: "/summary", label: "Monthly Summary", icon: <FileText className="w-4 h-4" /> },
   { href: "/savings", label: "Savings Goals", icon: <PiggyBank className="w-4 h-4" /> },
   { href: "/report", label: "Printable Report", icon: <Printer className="w-4 h-4" /> },
+  { href: "/settings", label: "Settings", icon: <Settings className="w-4 h-4" /> },
 ];
 
 export function Sidebar() {
@@ -79,7 +82,7 @@ export function Sidebar() {
           </p>
         ) : (
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Auto Audit · v1.4
+            Auto Audit · v{APP_VERSION}
           </p>
         )}
       </div>

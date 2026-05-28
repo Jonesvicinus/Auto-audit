@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 function todayIso(): string {
   const d = new Date();
@@ -25,9 +25,15 @@ export function SavingsGoalCard({
   onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [name, setName] = useState(goal.name);
   const [target, setTarget] = useState(String(goal.targetAmount));
   const [targetDate, setTargetDate] = useState(goal.targetDate?.slice(0, 10) ?? "");
+
+  // Cancel inline confirm if user enters edit mode
+  useEffect(() => {
+    if (editing) setConfirming(false);
+  }, [editing]);
 
   const pct = goal.targetAmount > 0 ? (goal.savedAmount / goal.targetAmount) * 100 : 0;
   const complete = goal.savedAmount >= goal.targetAmount && goal.targetAmount > 0;
@@ -100,15 +106,32 @@ export function SavingsGoalCard({
               >
                 <Pencil className="w-4 h-4" />
               </button>
-              <button
-                onClick={() => {
-                  if (window.confirm(`Delete goal "${goal.name}"?`)) onDelete();
-                }}
-                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-danger-600 hover:bg-danger-50 dark:hover:bg-danger-700/20 rounded-lg"
-                aria-label="Delete"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {confirming ? (
+                <>
+                  <button
+                    onClick={onDelete}
+                    className="p-1.5 text-danger-600 hover:bg-danger-50 dark:hover:bg-danger-700/20 rounded-lg text-xs font-medium"
+                    aria-label="Confirm delete"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setConfirming(false)}
+                    className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg"
+                    aria-label="Cancel delete"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setConfirming(true)}
+                  className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-danger-600 hover:bg-danger-50 dark:hover:bg-danger-700/20 rounded-lg"
+                  aria-label="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </>
           )}
         </div>

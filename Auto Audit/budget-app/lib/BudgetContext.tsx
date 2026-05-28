@@ -49,6 +49,7 @@ interface BudgetContextValue extends AppState {
   deleteSavingsGoal: (id: string) => void;
 
   rememberMerchant: (merchant: string, categoryId: string, remember: boolean) => void;
+  deleteMerchantMemory: (key: string) => void;
 
   resetDemo: () => Promise<void>;
   reseedDemoData: () => Promise<void>;
@@ -422,6 +423,14 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const deleteMerchantMemory = useCallback((key: string) => {
+    setState((s) => {
+      const next = s.merchantMemory.filter((m) => m.key !== key);
+      if (next.length === s.merchantMemory.length) return s;
+      return { ...s, merchantMemory: next };
+    });
+  }, []);
+
   const resetDemo = useCallback(async () => {
     try {
       await adapterRef.current?.reset();
@@ -472,6 +481,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       updateSavingsGoal,
       deleteSavingsGoal,
       rememberMerchant,
+      deleteMerchantMemory,
       resetDemo,
       reseedDemoData,
     }),
@@ -492,6 +502,7 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       updateSavingsGoal,
       deleteSavingsGoal,
       rememberMerchant,
+      deleteMerchantMemory,
       resetDemo,
       reseedDemoData,
     ],

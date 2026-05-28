@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { useAuth } from "@/lib/AuthContext";
+import { APP_VERSION } from "@/lib/version";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -312,7 +313,7 @@ export default function LandingPage() {
 
       <footer className="py-10 border-t border-gray-100 dark:border-neutral-900">
         <div className="max-w-6xl mx-auto px-6 lg:px-8 flex flex-wrap items-center justify-between gap-4 text-sm text-gray-500 dark:text-gray-500">
-          <p>© {new Date().getFullYear()} Auto Audit — v1.4</p>
+          <p>© {new Date().getFullYear()} Auto Audit — v{APP_VERSION}</p>
           <p>Demo data is local to your browser. Sign up to sync across devices.</p>
         </div>
       </footer>
