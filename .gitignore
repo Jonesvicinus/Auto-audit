@@ -7,5 +7,6 @@ out
 .vercel
 tsconfig.tsbuildinfo
 
-# Claude Code project instructions — local only
+# Claude Code project instructions and internals — local only
 CLAUDE.md
+.claude/
