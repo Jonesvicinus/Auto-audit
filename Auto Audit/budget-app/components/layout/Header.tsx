@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PlusCircle, Sparkles, LogOut, LogIn } from "lucide-react";
+import { PlusCircle, LogOut, LogIn } from "lucide-react";
 import { useBudget } from "@/lib/BudgetContext";
 import { useAuth } from "@/lib/AuthContext";
-import { Toggle } from "@/components/ui/Toggle";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "./ThemeToggle";
 import { useToast } from "@/components/ui/Toast";
@@ -18,10 +17,11 @@ const TITLES: Record<string, string> = {
   summary: "Monthly Summary",
   savings: "Savings Goals",
   report: "Printable Report",
+  settings: "Settings",
 };
 
 export function Header({ pathname }: { pathname: string }) {
-  const { user, advancedMode, setAdvancedMode } = useBudget();
+  const { user } = useBudget();
   const { isDemo, isAuthenticated, signOut, supabaseConfigured } = useAuth();
   const router = useRouter();
   const toast = useToast();
@@ -48,17 +48,6 @@ export function Header({ pathname }: { pathname: string }) {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <div
-            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full border border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900 cursor-pointer"
-            title="Advanced Mode placeholder (coming soon)"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-brand-600" />
-            <Toggle
-              checked={advancedMode}
-              onChange={setAdvancedMode}
-              label="Advanced Mode"
-            />
-          </div>
           <ThemeToggle />
           <Link href="/add-expense">
             <Button size="sm" leftIcon={<PlusCircle className="w-4 h-4" />}>

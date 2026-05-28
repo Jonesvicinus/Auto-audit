@@ -73,7 +73,6 @@ export interface AppState {
   budgets: MonthlyBudget[];
   savingsGoals: SavingsGoal[];
   merchantMemory: MerchantMemoryEntry[];
-  advancedMode: boolean;
 }
 
 export type AlertLevel = "info" | "warn" | "danger";

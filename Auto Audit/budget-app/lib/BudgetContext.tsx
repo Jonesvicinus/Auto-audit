@@ -50,7 +50,6 @@ interface BudgetContextValue extends AppState {
 
   rememberMerchant: (merchant: string, categoryId: string, remember: boolean) => void;
 
-  setAdvancedMode: (v: boolean) => void;
   resetDemo: () => Promise<void>;
   reseedDemoData: () => Promise<void>;
 
@@ -410,10 +409,6 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const setAdvancedMode = useCallback((v: boolean) => {
-    setState((s) => ({ ...s, advancedMode: v }));
-  }, []);
-
   const resetDemo = useCallback(async () => {
     try {
       await adapterRef.current?.reset();
@@ -464,7 +459,6 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       updateSavingsGoal,
       deleteSavingsGoal,
       rememberMerchant,
-      setAdvancedMode,
       resetDemo,
       reseedDemoData,
     }),
@@ -485,7 +479,6 @@ export function BudgetProvider({ children }: { children: React.ReactNode }) {
       updateSavingsGoal,
       deleteSavingsGoal,
       rememberMerchant,
-      setAdvancedMode,
       resetDemo,
       reseedDemoData,
     ],

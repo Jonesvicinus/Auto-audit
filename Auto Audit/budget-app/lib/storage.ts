@@ -177,7 +177,6 @@ export class SupabaseStorageAdapter implements StorageAdapter {
         categoryId: row.category_id,
         remember: true,
       })),
-      advancedMode: settings.data?.advanced_mode ?? false,
     };
   }
 
@@ -335,14 +334,6 @@ export class SupabaseStorageAdapter implements StorageAdapter {
       }
     }
 
-    // User settings
-    {
-      const { error } = await sb.from("user_settings").upsert(
-        { user_id: uid, advanced_mode: state.advancedMode },
-        { onConflict: "user_id" },
-      );
-      if (error) throw new Error(`user_settings upsert: ${error.message}`);
-    }
   }
 
   async reset(): Promise<void> {
@@ -399,7 +390,6 @@ export function buildDemoState(): AppState {
     budgets: buildDemoBudgets(),
     savingsGoals: DEMO_SAVINGS_GOALS,
     merchantMemory: DEMO_MERCHANT_MEMORY,
-    advancedMode: false,
   };
   state.budgets = ensureBudgetForMonth(state.budgets, currentMonthKey());
   return state;
@@ -422,7 +412,6 @@ export function buildEmptyAuthenticatedState(user: User): AppState {
     ],
     savingsGoals: [],
     merchantMemory: [],
-    advancedMode: false,
   };
 }
 

@@ -10,7 +10,6 @@ function makeState(): AppState {
     budgets: [],
     savingsGoals: [],
     merchantMemory: [],
-    advancedMode: false,
   };
 }
 
