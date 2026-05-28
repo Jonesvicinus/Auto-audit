@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+.DS_Store
+*.log
+.env*.local
+.vercel
+tsconfig.tsbuildinfo
+
+# Claude Code project instructions — local only
+CLAUDE.md
