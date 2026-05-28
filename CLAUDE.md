@@ -8,6 +8,7 @@ Read these first, in order:
 
 1. `/Users/jonesvicinus/Code/AI-Brain/wiki/projects/auto-audit/auto-audit.md`
    - For page-specific work, also read the matching note in `/Users/jonesvicinus/Code/AI-Brain/wiki/projects/auto-audit/`.
+   - For broad cleanup or audit-fix work, also read `/Users/jonesvicinus/Code/AI-Brain/wiki/projects/auto-audit/implementation-plans.md`.
 2. `/Users/jonesvicinus/Code/Auto-audit/Auto Audit/budget-app/DEVELOPER.md`
 3. `/Users/jonesvicinus/Code/Auto-audit/Auto Audit/budget-app/README.md` only if quick setup context is needed
 
